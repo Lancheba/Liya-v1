@@ -5,6 +5,7 @@ import re
 import time
 from pathlib import Path
 
+from config.ai_client import generate, get_client, MODEL_FLASH
 from agent.tool_result import ok, fail
 
 
@@ -13,22 +14,25 @@ def get_base_dir():
         return Path(sys.executable).parent
     return Path(__file__).resolve().parent.parent
 
-BASE_DIR           = get_base_dir()
-API_CONFIG_PATH    = BASE_DIR / "config" / "api_keys.json"
 DESKTOP            = Path.home() / "Desktop"
 MAX_BUILD_ATTEMPTS = 3
-GEMINI_MODEL       = "gemini-2.5-flash"
+GEMINI_MODEL       = MODEL_FLASH
 
 
-def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
+class _GeminiModel:
+    """Thin shim so existing `model.generate_content(prompt)` call sites in
+    this file don't need to change — backed by config.ai_client's shared
+    google-genai client instead of the deprecated google.generativeai SDK."""
+
+    def __init__(self, model: str):
+        self._model = model
+
+    def generate_content(self, contents):
+        return generate(self._model, contents)
 
 
 def _get_gemini(model: str = GEMINI_MODEL):
-    import google.generativeai as genai
-    genai.configure(api_key=_get_api_key())
-    return genai.GenerativeModel(model)
+    return _GeminiModel(model)
 
 
 def _clean_code(text: str) -> str:
@@ -428,10 +432,9 @@ def _screen_debug_action(description, file_path, player, speak=None) -> str:
             print(f"[Code] Could not read file: {err}")
 
     try:
-        from google import genai
         from google.genai import types
 
-        client = genai.Client(api_key=_get_api_key())
+        client = get_client()
 
         image_bytes = screenshot_path.read_bytes()
 
@@ -457,7 +460,7 @@ Please:
         ]
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=MODEL_FLASH,
             contents=contents,
         )
 

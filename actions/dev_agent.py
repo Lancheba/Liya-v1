@@ -5,6 +5,7 @@ import re
 import time
 from pathlib import Path
 
+from config.ai_client import generate, MODEL_FLASH
 from agent.tool_result import ok, fail
 
 
@@ -14,22 +15,26 @@ def get_base_dir():
     return Path(__file__).resolve().parent.parent
 
 
-BASE_DIR         = get_base_dir()
-API_CONFIG_PATH  = BASE_DIR / "config" / "api_keys.json"
 PROJECTS_DIR     = Path.home() / "Desktop" / "JarvisProjects"
 MAX_FIX_ATTEMPTS = 5
-MODEL_PLANNER    = "gemini-2.5-flash"
-MODEL_WRITER     = "gemini-2.5-flash"
+MODEL_PLANNER    = MODEL_FLASH
+MODEL_WRITER     = MODEL_FLASH
 
-def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
+
+class _GeminiModel:
+    """Thin shim so existing `model.generate_content(prompt)` call sites in
+    this file don't need to change — backed by config.ai_client's shared
+    google-genai client instead of the deprecated google.generativeai SDK."""
+
+    def __init__(self, model: str):
+        self._model = model
+
+    def generate_content(self, contents):
+        return generate(self._model, contents)
 
 
 def _get_model(model_name: str):
-    import google.generativeai as genai
-    genai.configure(api_key=_get_api_key())
-    return genai.GenerativeModel(model_name)
+    return _GeminiModel(model_name)
 
 
 def _strip_fences(text: str) -> str:

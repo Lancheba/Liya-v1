@@ -30,10 +30,24 @@ API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
 MODEL_FLASH      = "gemini-3.5-flash"        # planning / execution / reasoning
 MODEL_FLASH_LITE = "gemini-3.5-flash-lite"   # fast, cheap routing / classification
 
+# Gemini's Live (real-time voice) API is versioned on its own track, separate
+# from the main Flash line above — as of this writing the current, non-
+# deprecated Live model is 3.1 rather than 3.5. gemini-2.5-flash-native-audio-
+# preview-12-2025 (the previous value here) is deprecated; Google's migration
+# guidance points to gemini-3.1-flash-live-preview.
+MODEL_LIVE       = "gemini-3.1-flash-live-preview"   # Live API: voice loop / screen narration
+
 
 def _get_api_key() -> str:
     with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
         return json.load(f)["gemini_api_key"]
+
+
+def get_api_key() -> str:
+    """Public accessor for the Gemini API key — for callers that need the
+    raw key (e.g. to build a Client with non-default http_options) rather
+    than the cached client from get_client()."""
+    return _get_api_key()
 
 
 @lru_cache(maxsize=1)

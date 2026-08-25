@@ -1,11 +1,17 @@
-﻿# Liya â€” Write-up
+﻿# Liya — Write-up
+
+**Track: The Taskmaster** — Liya is not a chatbot that talks about a
+chore, it's an agent that runs one: it plans the steps, calls the real
+tools (files, apps, browser, reminders, web search, messaging), recovers
+from failures by replanning, and reports back with an auditable trace of
+what it actually did — with no hand-holding after the goal is handed to it.
 
 ## Problem statement
 
 Most "AI assistant" demos are a chat window bolted onto a single LLM
 call: the model answers, but a person still has to open the file, click
 the button, or run the search themselves. Liya is built the other way
-around â€” the model plans, and the agent actually carries out the plan
+around — the model plans, and the agent actually carries out the plan
 against real tools (files, apps, browser, reminders, web search,
 messaging) on the user's machine, with failure recovery and governance
 built in, not bolted on. The goal isn't a better chatbot; it's a system
@@ -14,7 +20,7 @@ staying auditable and safe to run with elevated local permissions.
 
 ## Why this architecture
 
-**Plan â†’ execute â†’ recover, as separate concerns.** `agent/planner.py`
+**Plan → execute → recover, as separate concerns.** `agent/planner.py`
 only turns a goal into a step list; `agent/executor.py` only runs steps;
 `agent/error_handler.py` only decides what to do when a step fails
 (retry / skip / replan / abort). Keeping these separate means a failure
@@ -28,12 +34,12 @@ once, in one place, overridable per-deployment via
 `config/api_keys.json`. Risky tools (arbitrary computer control, code
 execution) default to `confirm`; read-only or low-risk tools (web
 search, weather) default to `allow`. This is what makes it reasonable to
-let the planner call these tools autonomously at all â€” the danger isn't
+let the planner call these tools autonomously at all — the danger isn't
 gated per-call by prompt engineering, it's gated structurally.
 
 **Two execution engines, on purpose.** Liya ships both:
 
-1. The original planner/executor path â€” a direct Gemini call producing
+1. The original planner/executor path — a direct Gemini call producing
    a JSON step plan against a hand-maintained tool schema
    (`agent/planner.py`'s `PLANNER_PROMPT`). This is fast, cheap
    (`gemini-3.5-flash-lite` for planning), and was the whole system
@@ -42,11 +48,11 @@ gated per-call by prompt engineering, it's gated structurally.
    modules as ADK `FunctionTool`s (`agent/adk_tools.py`), run through
    ADK's own agent loop and session management
    (`agent/adk_runner.py`), sharing the same underlying Gemini client
-   (`agent/adk_model.py` â†’ `config/ai_client.py`).
+   (`agent/adk_model.py` → `config/ai_client.py`).
 
    The ADK path exists because ADK gives session/state management,
    structured tool-calling, and an agent runtime maintained by Google
-   instead of hand-rolled JSON-plan parsing â€” but rewriting the entire
+   instead of hand-rolled JSON-plan parsing — but rewriting the entire
    executor around ADK in one pass, across ~16 action modules that
    already work in production, was a bigger risk than the benefit
    justified this cycle. Running both side by side (`POST /task` vs
@@ -57,7 +63,7 @@ gated per-call by prompt engineering, it's gated structurally.
 place that constructs a `google.genai.Client` or names a model string.
 Every action module, the legacy planner, and the ADK model subclass
 (`LiyaGemini`) go through it. A model version bump is a one-line change,
-not a repo-wide find-and-replace â€” which matters more as the ADK and
+not a repo-wide find-and-replace — which matters more as the ADK and
 legacy paths both need to stay in sync on which model they call.
 
 **Firestore is additive, not required.** `memory/memory_manager.py` and
@@ -82,7 +88,7 @@ autonomously" for a hackathon build, not the enterprise-hardened one.
 ## What's next
 
 The designated end-to-end demo scenario and the trace/observability
-walkthrough for judges are documented separately â€” see the project
+walkthrough for judges are documented separately — see the project
 tracker for that work.
 
 ---
@@ -94,15 +100,15 @@ save a short summary to a file called ev_trends.txt on the Desktop, and
 set a reminder for tomorrow at 9:00 AM to review it."*
 
 This is the one scenario used to demo Liya end-to-end. It's chosen
-because it chains three independent tools (`web_search` â†’
-`file_controller` â†’ `reminder`) in a single autonomous run, which
+because it chains three independent tools (`web_search` →
+`file_controller` → `reminder`) in a single autonomous run, which
 exercises:
 
-- **Multi-step planning** â€” the planner has to sequence three
+- **Multi-step planning** — the planner has to sequence three
   dependent actions from one sentence, not just route to a single tool.
-- **Real execution, not simulation** â€” a file actually appears on the
+- **Real execution, not simulation** — a file actually appears on the
   Desktop and a reminder actually gets scheduled; nothing is mocked.
-- **Visible autonomy** â€” every step is logged through
+- **Visible autonomy** — every step is logged through
   `observability/logger.py` as it happens, not just summarized at the
   end.
 
@@ -115,7 +121,7 @@ python demo/run_demo.py
 This submits the goal directly to the real `agent/task_queue.py` (no
 server needed) and streams the execution trace live as JSON events are
 emitted, formatted as a readable timeline: which step is running, which
-tool it called, and its result â€” as it happens, not after the fact.
+tool it called, and its result — as it happens, not after the fact.
 
 Against a running backend instead (local or deployed), including the
 Google ADK path:
@@ -137,7 +143,7 @@ python demo/run_demo_http.py --url http://localhost:8080 --key dev --adk
 1. stdout, as a JSON line per event (always on)
 2. Firestore, under `tasks/{task_id}/trace/` (when configured)
 3. An in-memory ring buffer, queryable via `get_trace(task_id)` (always
-   on â€” this is what makes the trace visible on a local run with no
+   on — this is what makes the trace visible on a local run with no
    GCP project at all)
 
 `GET /task/{task_id}/trace` uses Firestore when it's configured and

@@ -7,22 +7,16 @@ import tempfile
 from pathlib import Path
 from datetime import datetime
 
-from google import genai
 from google.genai import types
 
+from config.ai_client import get_client, MODEL_FLASH
 from agent.tool_result import ok, fail
 
 
-def _get_api_key() -> str:
-    config_path = Path(__file__).resolve().parent.parent / "config" / "api_keys.json"
-    with open(config_path, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
-
-
 def _gemini_client():
-    return genai.Client(api_key=_get_api_key())
+    return get_client()
 
-MODEL = "gemini-2.5-flash"
+MODEL = MODEL_FLASH
 
 
 def _detect_type(path: Path) -> str:

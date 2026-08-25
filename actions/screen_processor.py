@@ -36,6 +36,7 @@ except ImportError:
 from google import genai
 from google.genai import types as gtypes
 
+from config.ai_client import MODEL_LIVE
 from agent.tool_result import ok, fail
 
 def _base_dir() -> Path:
@@ -74,7 +75,7 @@ def _get_api_key() -> str:
 def _get_os() -> str:
     return _load_config().get("os_system", "windows").lower()
 
-_LIVE_MODEL         = "models/gemini-2.5-flash-native-audio-preview-12-2025"
+_LIVE_MODEL         = MODEL_LIVE
 _CHANNELS           = 1
 _RECEIVE_SAMPLE_RATE = 24_000
 _CHUNK_SIZE         = 1_024

@@ -7,21 +7,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from config import is_windows, is_mac, is_linux
+from config.ai_client import generate, MODEL_FLASH, MODEL_FLASH_LITE
 from agent.tool_result import ok, fail
-
-def _get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
-
-
-BASE_DIR        = _get_base_dir()
-API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
-
-
-def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
 
 _MONTH_MAP: dict[str, int] = {
 
@@ -63,10 +50,8 @@ def _parse_date(raw: str) -> str:
             return val.strftime("%Y-%m-%d")
 
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=_get_api_key())
-        model    = genai.GenerativeModel("gemini-2.5-flash-lite")
-        response = model.generate_content(
+        response = generate(
+            MODEL_FLASH_LITE,
             f"Today is {today.strftime('%Y-%m-%d')}. "
             f"Convert this date expression to YYYY-MM-DD: '{raw}'. "
             f"Return ONLY the date string, nothing else."
@@ -161,18 +146,6 @@ def _parse_flights_with_gemini(
     destination: str,
     date:        str,
 ) -> list[dict]:
-    import google.generativeai as genai
-
-    genai.configure(api_key=_get_api_key())
-    model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
-        system_instruction=(
-            "You are a flight data extraction expert. "
-            "Extract flight information from raw webpage text. "
-            "Return ONLY valid JSON — no markdown, no explanation."
-        ),
-    )
-
     prompt = (
         f"Extract flight options from {origin} to {destination} on {date} "
         f"from this Google Flights page text:\n\n{raw_text[:12000]}\n\n"
@@ -183,7 +156,15 @@ def _parse_flights_with_gemini(
     )
 
     try:
-        response = model.generate_content(prompt)
+        response = generate(
+            MODEL_FLASH,
+            prompt,
+            system_instruction=(
+                "You are a flight data extraction expert. "
+                "Extract flight information from raw webpage text. "
+                "Return ONLY valid JSON — no markdown, no explanation."
+            ),
+        )
         text     = re.sub(r"```(?:json)?", "", response.text).strip().rstrip("`").strip()
         flights  = json.loads(text)
         return flights if isinstance(flights, list) else []

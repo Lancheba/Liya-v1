@@ -45,9 +45,6 @@ def _get_os() -> str:
     return _load_config().get("os_system", "windows").lower()
 
 
-def _get_api_key() -> str:
-    return _load_config().get("gemini_api_key", "")
-
 _SAFE_SCREENSHOT_ROOTS = (
     Path.home(),
 )
@@ -299,13 +296,9 @@ def _focus_window(title: str) -> str:
     return f"focus_window: unknown OS '{os_name}'"
 
 def _screen_find(description: str) -> tuple[int, int] | None:
-    api_key = _get_api_key()
-    if not api_key:
-        print("[ComputerControl] ⚠️ No API key for screen_find")
-        return None
+    from config.ai_client import get_client, MODEL_FLASH_LITE
 
     try:
-        from google import genai
         from google.genai import types as gtypes
 
         _require_pyautogui()
@@ -315,7 +308,7 @@ def _screen_find(description: str) -> tuple[int, int] | None:
         img.save(buf, format="PNG")
         image_bytes = buf.getvalue()
 
-        client = genai.Client(api_key=api_key)
+        client = get_client()
         prompt = (
             f"This is a screenshot of a {w}×{h} pixel screen. "
             f"Locate the UI element described as: '{description}'. "
@@ -324,7 +317,7 @@ def _screen_find(description: str) -> tuple[int, int] | None:
         )
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model=MODEL_FLASH_LITE,
             contents=[
                 gtypes.Part.from_bytes(data=image_bytes, mime_type="image/png"),
                 prompt,

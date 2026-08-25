@@ -28,15 +28,6 @@ from config import get_os, is_windows, is_mac, is_linux
 from agent.tool_result import ok, fail
 
 
-def _get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
-
-
-BASE_DIR        = _get_base_dir()
-API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
-
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (X11; Linux x86_64) "
@@ -47,11 +38,6 @@ HEADERS = {
 }
 
 _YT_VIDEO_FILTER = "EgIQAQ%3D%3D"
-
-
-def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
 
 
 def _open_url(url: str) -> None:
@@ -159,24 +145,20 @@ def _get_transcript(video_id: str) -> str | None:
 
 
 def _summarize_with_gemini(transcript: str, video_url: str) -> str:
-    import google.generativeai as genai
+    from config.ai_client import generate, MODEL_FLASH
 
-    genai.configure(api_key=_get_api_key())
-    model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
+    max_chars = 80000
+    truncated = transcript[:max_chars] + ("..." if len(transcript) > max_chars else "")
+    response  = generate(
+        MODEL_FLASH,
+        f"Please summarize this YouTube video transcript:\n\n{truncated}",
         system_instruction=(
             "You are Liya, an autonomous AI agent. "
             "Summarize YouTube video transcripts clearly and concisely. "
             "Structure: 1-sentence overview, then 3-5 key points. "
             "Be direct. "
             "Match the language of the transcript."
-        )
-    )
-
-    max_chars = 80000
-    truncated = transcript[:max_chars] + ("..." if len(transcript) > max_chars else "")
-    response  = model.generate_content(
-        f"Please summarize this YouTube video transcript:\n\n{truncated}"
+        ),
     )
     return response.text.strip()
 

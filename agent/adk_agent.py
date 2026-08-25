@@ -1,7 +1,7 @@
 ﻿"""
-agent/adk_agent.py â€” Liya's Google ADK agent definition.
+agent/adk_agent.py — Liya's Google ADK agent definition.
 
-This is a real, runnable google.adk.agents.Agent â€” not a wrapper that only
+This is a real, runnable google.adk.agents.Agent — not a wrapper that only
 imports the package. It shares Liya's action tools (agent/adk_tools.py)
 and Gemini client (agent/adk_model.py, config/ai_client.py) with the rest
 of the codebase.

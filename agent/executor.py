@@ -160,7 +160,7 @@ def _translate_to_goal_language(content: str, goal: str) -> str:
         )
         response = generate(MODEL_FLASH, prompt)
         translated = response.text.strip()
-        print(f"[Executor] âœ… Translation done ({target_lang})")
+        print(f"[Executor] ✅ Translation done ({target_lang})")
         return translated
     except Exception as e:
         print(f"[Executor] âš ï¸ Translation failed: {e}")
@@ -172,7 +172,7 @@ _FAILURE_PHRASES = (
     "was not able to", "something went wrong", "already passed",
     "in the past", "failed to", "did not work", "didn't work",
     # Non-actionable / needs-more-info responses (e.g. a mis-fired code_helper
-    # or dev_agent fallback asking for a parameter it was never given) â€” these
+    # or dev_agent fallback asking for a parameter it was never given) — these
     # mean nothing happened, not that the step succeeded.
     "please provide", "please specify", "i need more information",
     "missing required", "not enough information", "requires a valid",
@@ -197,9 +197,9 @@ def _evaluate_result(raw) -> tuple[bool, str]:
     """
     Normalizes a tool's return value into (succeeded, display_text).
 
-    - Migrated tools return a ToolResult dict {"ok": bool, "message": str} â€”
+    - Migrated tools return a ToolResult dict {"ok": bool, "message": str} —
       trusted directly, no guessing.
-    - Legacy tools still return a bare string â€” fall back to the phrase
+    - Legacy tools still return a bare string — fall back to the phrase
       heuristic (best-effort, will miss novel rejection phrasings).
     """
     if is_tool_result(raw):
@@ -235,7 +235,7 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
 
     elif tool == "screen_process":
         from actions.screen_processor import screen_process
-        # screen_process now returns a structured ToolResult â€” previously
+        # screen_process now returns a structured ToolResult — previously
         # its return value was discarded here and a fixed success string
         # was always reported, even when capture/session start failed.
         return screen_process(parameters=parameters, player=None)
@@ -283,7 +283,7 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
         return game_updater(parameters=parameters, player=None, speak=speak) or "Done."
 
     else:
-        print(f"[Executor] âš ï¸ Unknown tool '{tool}' â€” falling back to generated_code")
+        print(f"[Executor] âš ï¸ Unknown tool '{tool}' — falling back to generated_code")
         return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)
 
 class AgentExecutor:
@@ -296,7 +296,7 @@ class AgentExecutor:
         speak:       Callable | None        = None,
         cancel_flag: threading.Event | None = None,
         task_id:     str | None             = None,
-        auto_approve: bool                  = False,  # â† NEW: for tool governance
+        auto_approve: bool                  = False,  # ← NEW: for tool governance
     ) -> str:
         import time as _time
         import os
@@ -369,7 +369,7 @@ class AgentExecutor:
 
                         if not succeeded:
                             # Tool returned normally but reported failure (either
-                            # via structured ok=False, or â€” for un-migrated tools â€”
+                            # via structured ok=False, or — for un-migrated tools —
                             # text that matches the legacy rejection heuristic.
                             # Route through normal failure handling instead of
                             # logging step.success.
@@ -414,7 +414,7 @@ class AgentExecutor:
                             log_step_skipped(task_id, step_num, tool)
                             completed_steps.append({
                                 **step,
-                                "result": f"[SKIPPED â€” not actually completed] {error_msg[:200]}",
+                                "result": f"[SKIPPED — not actually completed] {error_msg[:200]}",
                             })
                             step_ok = True
                             break
@@ -484,7 +484,7 @@ class AgentExecutor:
         fallback = f"All done, sir. Completed {len(completed_steps)} steps for: {goal[:60]}."
         try:
             # Use the ACTUAL result text of each step, not just its planned
-            # description â€” otherwise a rejected/skipped step reads identically
+            # description — otherwise a rejected/skipped step reads identically
             # to a genuinely successful one and the summary lies about outcome.
             steps_str = "\n".join(
                 f"- {s.get('description', '')} -> Result: {s.get('result', '(no result captured)')}"
@@ -504,4 +504,4 @@ class AgentExecutor:
             return summary
         except Exception:
             if speak: speak(fallback)
-            return fallback
+            return fallback

@@ -1,4 +1,4 @@
-﻿# Liya â€” Autonomous AI Agent
+﻿# Liya — Autonomous AI Agent
 
 Liya is a voice-and-text autonomous AI agent that plans multi-step goals,
 executes them against real tools on your machine (files, apps, browser,
@@ -7,8 +7,14 @@ either locally as a desktop app or remotely as a Cloud Run backend.
 
 Given a goal like *"research mechanical engineering and save it to a
 notepad file"*, Liya breaks it into steps, runs each step against a real
-tool, recovers from failures by replanning, and reports back â€” without
+tool, recovers from failures by replanning, and reports back — without
 the user specifying each individual action.
+
+**All Things Agentic Hackathon track: The Taskmaster.** Liya isn't a
+chatbot that writes text about a task — it's handed a messy, multi-step
+chore (research something, edit a file, message someone, book something)
+and it plans the steps, calls the real tools, recovers from failures by
+replanning, and reports back with proof of what it actually did.
 
 ---
 
@@ -21,36 +27,36 @@ Diagram source: [`diagrams/architecture.dot`](diagrams/architecture.dot)
 (Mermaid, renders natively on GitHub). Plain-text fallback:
 
 ```
-                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-   Voice / Text â”€â”€â–º â”‚        main.py / ui.py     â”‚   Desktop app (local)
-                    â”‚  Gemini Live voice loop     â”‚
-                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                                   â”‚
-                    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â–¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-                    â”‚        agent/planner.py     â”‚  Breaks goal â†’ JSON step plan
-                    â”‚        agent/executor.py     â”‚  Runs each step, handles retries
-                    â”‚        agent/error_handler.pyâ”‚  Decides retry / skip / replan / abort
-                    â”‚        agent/governance.py   â”‚  allow / confirm / deny per tool
-                    â”‚        agent/task_queue.py   â”‚  Background task queue + status
-                    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
-                                   â”‚
-              â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¼â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-              â–¼                    â–¼                     â–¼
-      actions/*.py tools   agent/adk_agent.py     observability/logger.py
-      (web_search, files,  (Google ADK agent,     (structured execution
-       apps, reminders,     same tools, ADK's       logs / trace)
-       browser, etc.)       own run loop)
-              â”‚
-              â–¼
-      memory/memory_manager.py  â”€â”€â–º  Firestore (or local JSON fallback)
+                    ┌────────────────────────────┐
+   Voice / Text ──► │        main.py / ui.py     │   Desktop app (local)
+                    │  Gemini Live voice loop     │
+                    └────────────────┬───────────┘
+                                     │
+                    ┌────────────────▼───────────┐
+                    │        agent/planner.py     │  Breaks goal -> JSON step plan
+                    │        agent/executor.py     │  Runs each step, handles retries
+                    │        agent/error_handler.py│  Decides retry / skip / replan / abort
+                    │        agent/governance.py   │  allow / confirm / deny per tool
+                    │        agent/task_queue.py   │  Background task queue + status
+                    └────────────────┬───────────┘
+                                     │
+              ┌──────────────────────┼──────────────────────┐
+              ▼                      ▼                      ▼
+      actions/*.py tools     agent/adk_agent.py     observability/logger.py
+      (web_search, files,     (Google ADK agent,      (structured execution
+       apps, reminders,        same tools, ADK's        logs / trace)
+       browser, etc.)          own run loop)
+              │
+              ▼
+      memory/memory_manager.py  ──>  Firestore (or local JSON fallback)
 
 Remote / hackathon-judge access:
-   backend/server.py (FastAPI) â”€â”€â–º Cloud Run â”€â”€â–º same planner/executor/ADK agent
+   backend/server.py (FastAPI) ──> Cloud Run ──> same planner/executor/ADK agent
 ```
 
 Two execution paths exist side by side:
 
-- **Legacy path** (`agent/planner.py` â†’ `agent/executor.py`): a Gemini
+- **Legacy path** (`agent/planner.py` → `agent/executor.py`): a Gemini
   call produces a JSON step plan against a fixed tool list, then the
   executor runs each step and can replan on failure. This is what
   `main.py` (desktop) and `POST /task` (backend) use today.
@@ -66,14 +72,14 @@ Two execution paths exist side by side:
 
 | Path | What it is |
 |---|---|
-| `main.py` | Desktop entry point â€” voice loop (Gemini Live), tool dispatch, UI wiring |
+| `main.py` | Desktop entry point — voice loop (Gemini Live), tool dispatch, UI wiring |
 | `ui.py` | PyQt desktop UI (`LiyaUI`) |
 | `agent/planner.py` | Turns a goal into a JSON step plan (legacy path) |
 | `agent/executor.py` | Executes a plan step by step, handles `generated_code` fallback |
 | `agent/error_handler.py` | Classifies step failures: retry / skip / replan / abort |
 | `agent/governance.py` | Per-tool policy: `allow` / `confirm` / `deny` (see below) |
 | `agent/task_queue.py` | Background task queue backing `POST /task` |
-| `agent/adk_model.py` | `LiyaGemini` â€” ADK model wired to Liya's shared Gemini client |
+| `agent/adk_model.py` | `LiyaGemini` — ADK model wired to Liya's shared Gemini client |
 | `agent/adk_tools.py` | ADK `FunctionTool` wrappers around the actions below |
 | `agent/adk_agent.py` | Builds the real ADK `Agent` |
 | `agent/adk_runner.py` | Runs a goal through the ADK agent + session |
@@ -133,7 +139,7 @@ Full Cloud Run deployment steps live in
 
 ## Tool governance
 
-Every tool has a policy in `agent/governance.py` â€” `allow` (runs
+Every tool has a policy in `agent/governance.py` — `allow` (runs
 immediately), `confirm` (needs user confirmation; auto-denied in
 headless/cloud unless pre-approved), or `deny`. Defaults:
 
@@ -183,7 +189,7 @@ rationale, and the designated demo scenario.
 python demo/run_demo.py
 ```
 
-Runs a real multi-tool goal (web search â†’ save a file â†’ set a reminder)
+Runs a real multi-tool goal (web search → save a file → set a reminder)
 through the actual task queue and prints the execution trace live as it
 happens. See [`WRITEUP.md`](WRITEUP.md#designated-demo-scenario) for
 details and the HTTP/ADK variants.
