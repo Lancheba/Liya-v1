@@ -1,9 +1,4 @@
-﻿# Full desktop-app requirement set (main.py / ui.py + all actions/*.py).
-# Deploying the backend to Cloud Run? Use requirements-backend.txt instead —
-# it's the minimal subset the Dockerfile actually needs, without PyQt6,
-# pyautogui, playwright, etc. This file is kept as the local/desktop
-# superset so `pip install -r requirements.txt` still sets up the full app.
-google-genai>=1.0
+﻿google-genai>=1.0
 google-adk>=2.7.1
 google-cloud-firestore>=2.16
 fastapi>=0.111

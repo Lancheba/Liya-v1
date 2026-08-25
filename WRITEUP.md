@@ -59,6 +59,34 @@ gated per-call by prompt engineering, it's gated structurally.
    `POST /task/adk`) lets the ADK path be exercised, tested, and trusted
    incrementally rather than as a single risky cutover.
 
+   **Scope of the ADK path today:** 8 of the repo's 16 actions are
+   wrapped as `FunctionTool`s in `agent/adk_tools.py` — `web_search`,
+   `file_controller`, `open_app`, `reminder`, `weather_report`,
+   `flight_finder`, `file_processor`, and `send_message`. The remaining
+   8 (`browser_control`, `computer_settings`, `computer_control`,
+   `desktop_control`, `screen_processor`, `youtube_video`, `code_helper`,
+   `dev_agent`) follow the identical wrapper pattern and are the natural
+   next additions; they were left out of this pass because they pull in
+   Playwright/pyautogui, which don't belong in a headless Cloud Run
+   container the way the 8 above do. `send_message` is included
+   specifically to keep a `confirm`-tier tool on the ADK path — see
+   below.
+
+   **Governance parity.** The legacy executor enforces
+   `agent/governance.py`'s allow/confirm/deny policy before every step
+   (`agent/executor.py`'s governance check). The first version of the
+   ADK integration didn't — `agent/adk_tools.py` called straight into
+   the action functions with no gate, so a `confirm`-tier tool could run
+   through the ADK agent with nothing stopping it. `_governed()` in
+   `agent/adk_tools.py` now wraps every ADK tool call through the same
+   `check_tool_permission()` the legacy path uses, and `POST /task/adk`
+   takes the same `auto_approve` field `POST /task` does
+   (`backend/server.py`). `demo/demo_governance.py` drives this live: it
+   runs the same goal twice through the real ADK agent — once with no
+   consent (governance blocks `send_message`), once with
+   `auto_approve=True` (it runs) — so the policy is something a judge
+   can watch happen, not just read in this file.
+
 **One model client, everywhere.** `config/ai_client.py` is the only
 place that constructs a `google.genai.Client` or names a model string.
 Every action module, the legacy planner, and the ADK model subclass
@@ -90,6 +118,14 @@ autonomously" for a hackathon build, not the enterprise-hardened one.
 The designated end-to-end demo scenario and the trace/observability
 walkthrough for judges are documented separately — see the project
 tracker for that work.
+
+## Repo hygiene notes
+
+`requirements.txt` (full desktop superset for `main.py`/`ui.py`) and
+`requirements-backend.txt` (the minimal set `Dockerfile` actually
+installs — no PyQt6/pyautogui/Playwright) are now separate files;
+`requirements-desktop.txt` mirrors the former for anyone who had it
+bookmarked. Licensed under MIT (`LICENSE`).
 
 ---
 

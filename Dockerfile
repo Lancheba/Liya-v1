@@ -28,8 +28,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── 2. Install Python dependencies ──────────────────────────────────────────
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Backend-only subset (no PyQt6/pyautogui/playwright/mss — desktop-app deps
+# main.py needs but this headless container never imports). See
+# requirements-desktop.txt for the full local/desktop superset.
+COPY requirements-backend.txt .
+RUN pip install --no-cache-dir -r requirements-backend.txt
 
 # ── 3. Copy project source ───────────────────────────────────────────────────
 COPY agent/      ./agent/

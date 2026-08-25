@@ -113,6 +113,9 @@ class MemoryRequest(BaseModel):
 class AdkTaskRequest(BaseModel):
     goal: str
     session_id: Optional[str] = None
+    auto_approve: bool = False   # same meaning as TaskRequest.auto_approve —
+                                  # lets `confirm`-tier tools (e.g. send_message)
+                                  # run under headless/Cloud Run governance.
 
 
 # ---------------------------------------------------------------------------
@@ -222,16 +225,25 @@ def submit_task_adk(req: AdkTaskRequest):
     Unlike POST /task, this blocks until the ADK agent finishes and
     returns its final text response directly — useful for demoing or
     testing the ADK integration path in isolation from the task queue.
+
+    Every tool call the ADK agent makes is still gated by
+    agent/governance.py (see agent/adk_tools.py._governed) — this endpoint
+    is not a way to bypass the allow/confirm/deny policy the legacy /task
+    path enforces, it uses the exact same check.
     """
     from agent.adk_runner import run_goal_sync
+    from agent.adk_tools import set_auto_approve
 
     if not req.goal or not req.goal.strip():
         raise HTTPException(status_code=400, detail="'goal' must not be empty.")
 
+    set_auto_approve(req.auto_approve)
     try:
         result = run_goal_sync(req.goal.strip(), session_id=req.session_id)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"ADK agent run failed: {exc}")
+    finally:
+        set_auto_approve(False)  # never leak consent across requests
 
     return {
         "goal":   req.goal.strip(),

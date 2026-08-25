@@ -80,7 +80,7 @@ Two execution paths exist side by side:
 | `agent/governance.py` | Per-tool policy: `allow` / `confirm` / `deny` (see below) |
 | `agent/task_queue.py` | Background task queue backing `POST /task` |
 | `agent/adk_model.py` | `LiyaGemini` — ADK model wired to Liya's shared Gemini client |
-| `agent/adk_tools.py` | ADK `FunctionTool` wrappers around the actions below |
+| `agent/adk_tools.py` | ADK `FunctionTool` wrappers around 8 of the actions below, each gated through `agent/governance.py` (see below) |
 | `agent/adk_agent.py` | Builds the real ADK `Agent` |
 | `agent/adk_runner.py` | Runs a goal through the ADK agent + session |
 | `actions/*.py` | Individual tools: web search, file control, app launching, reminders, browser control, computer control/settings, screen analysis, messaging, flight search, YouTube, code helper/dev agent |
@@ -205,6 +205,7 @@ nothing here is mocked or simulated for the demo.
 |---|---|---|
 | Multi-tool autonomous execution | `python demo/run_demo.py` | web_search -> file_controller -> reminder chained from one goal, live trace |
 | Memory changes planning, not just storage | `python demo/demo_memory_recall.py` | Writes a preference via `memory.remember()`, then shows the `plan.memory_applied` trace event proving the planner received it as context |
+| Governance actually blocks/allows on the ADK path | `python demo/demo_governance.py` | Runs the same goal through the real ADK agent twice — once with no consent (`send_message` blocked), once with `auto_approve=True` (it runs) — via the live `check_tool_permission()` call, not a mock |
 | Failure -> analyze -> replan -> recover | `python demo/demo_failure_recovery.py` | Induces a real write failure (unwritable path), streams `step.failure` -> `plan.replan` -> `step.success` from the real `error_handler.py`/`executor.py` loop |
 | Google ADK agent path | `python demo/run_demo_http.py --url http://localhost:8080 --key dev --adk` | Same goal run through `agent/adk_runner.py`'s real `InMemoryRunner` session loop |
 | Background/async execution | `POST /task` returns a `task_id` immediately; poll `GET /task/{task_id}` later | Task keeps running after the HTTP request returns |
