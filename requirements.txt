@@ -1,0 +1,8 @@
+﻿google-genai>=1.0
+google-adk>=2.7.1
+google-cloud-firestore>=2.16
+fastapi>=0.111
+uvicorn[standard]>=0.29
+pydantic>=2.0
+requests>=2.28   # used by demo/run_demo_http.py
+playwright>=1.44  # used by actions/browser_control.py; setup.py runs playwright install on top of this
