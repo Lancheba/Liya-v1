@@ -16,3 +16,13 @@ sounddevice>=0.4  # voice I/O for the Gemini Live loop (main.py)
 pyautogui>=0.9    # main.py eagerly imports actions/youtube_video.py, which
                   # imports pyautogui unconditionally (no try/except there,
                   # unlike desktop.py/computer_settings.py/computer_control.py)
+
+PyPDF2
+pdfplumber
+pandas
+pydub
+python-pptx
+Pillow
+mss
+send2trash
+youtube_transcript_api
