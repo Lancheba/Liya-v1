@@ -239,5 +239,5 @@ Activate billing) to raise the quota well above free-tier limits.
 
 This exact fallback chain fired live during our own Cloud Run
 deployment — see
-[\evidence/cloud_run_deployment_proof.log\](evidence/cloud_run_deployment_proof.log)
+[evidence/cloud_run_deployment_proof.log](evidence/cloud_run_deployment_proof.log)
 for the unedited production log.
