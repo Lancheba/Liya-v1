@@ -27,7 +27,7 @@ def _ddg_search(query: str, max_results: int = 6) -> list[dict]:
     try:
         from ddgs import DDGS
     except ImportError:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
 
     results = []
     with DDGS() as ddgs:
