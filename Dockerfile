@@ -35,11 +35,12 @@ COPY requirements-backend.txt .
 RUN pip install --no-cache-dir -r requirements-backend.txt
 
 # ── 3. Copy project source ───────────────────────────────────────────────────
-COPY agent/      ./agent/
-COPY config/     ./config/
-COPY memory/     ./memory/
-COPY actions/    ./actions/
-COPY backend/    ./backend/
+COPY agent/         ./agent/
+COPY config/        ./config/
+COPY memory/        ./memory/
+COPY actions/       ./actions/
+COPY backend/       ./backend/
+COPY observability/ ./observability/
 
 # ── 4. Expose port (documentation only — Cloud Run uses PORT env-var) ────────
 EXPOSE 8080
