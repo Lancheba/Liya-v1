@@ -504,10 +504,7 @@ class LiyaLive:
         if not self._loop or not self.session:
             return
         asyncio.run_coroutine_threadsafe(
-            self.session.send_client_content(
-                turns={"parts": [{"text": text}]},
-                turn_complete=True
-            ),
+            self.session.send_realtime_input(text=text),
             self._loop
         )
 
@@ -523,10 +520,7 @@ class LiyaLive:
         if not self._loop or not self.session:
             return
         asyncio.run_coroutine_threadsafe(
-            self.session.send_client_content(
-                turns={"parts": [{"text": text}]},
-                turn_complete=True
-            ),
+            self.session.send_realtime_input(text=text),
             self._loop
         )
 
@@ -710,7 +704,9 @@ class LiyaLive:
     async def _send_realtime(self):
         while True:
             msg = await self.out_queue.get()
-            await self.session.send_realtime_input(media=msg)
+            await self.session.send_realtime_input(
+                audio=types.Blob(data=msg["data"], mime_type=msg["mime_type"])
+            )
 
     async def _listen_audio(self):
         print("[LIYA] 🎤 Mic started")
@@ -723,7 +719,7 @@ class LiyaLive:
                 data = indata.tobytes()
                 loop.call_soon_threadsafe(
                     self.out_queue.put_nowait,
-                    {"data": data, "mime_type": "audio/pcm"}
+                    {"data": data, "mime_type": f"audio/pcm;rate={SEND_SAMPLE_RATE}"}
                 )
 
         try:

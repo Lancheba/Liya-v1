@@ -11,9 +11,24 @@ from pathlib import Path
 
 import psutil
 
+try:
+    from memory.memory_manager import (
+        append_history_entry, load_history, load_history_grouped_by_date,
+    )
+except Exception:
+    # UI must still run standalone even if the memory package isn't importable
+    def append_history_entry(line: str) -> None: ...
+    def load_history(limit: int = 60) -> list: return []
+    def load_history_grouped_by_date() -> dict: return {}
+
+try:
+    from agent.task_queue import get_queue
+except Exception:
+    def get_queue(): return None
+
 from PyQt6.QtCore import (
-    QEasingCurve, QMimeData, QObject, QPointF, QRectF, QSize, Qt,
-    QTimer, QUrl, pyqtSignal,
+    QEasingCurve, QMimeData, QObject, QPointF, QPropertyAnimation, QRectF,
+    QSize, Qt, QTimer, QUrl, pyqtSignal,
 )
 from PyQt6.QtGui import (
     QBrush, QColor, QDragEnterEvent, QDropEvent, QFont, QFontDatabase,
@@ -37,10 +52,10 @@ BASE_DIR   = _base_dir()
 CONFIG_DIR = BASE_DIR / "config"
 API_FILE   = CONFIG_DIR / "api_keys.json"
 
-_DEFAULT_W, _DEFAULT_H = 1000, 720
-_MIN_W,     _MIN_H     = 820, 580
+_DEFAULT_W, _DEFAULT_H = 1180, 760
+_MIN_W,     _MIN_H     = 900, 580
 _LEFT_W  = 160
-_RIGHT_W = 260
+_RIGHT_W = 480
 
 _OS = platform.system()   # "Windows" | "Darwin" | "Linux"
 
@@ -676,6 +691,40 @@ class LogWidget(QTextEdit):
     def append_log(self, text: str):
         self._sig.emit(text)
 
+    def reset(self):
+        """Clear the widget and stop/discard any in-flight typewriter
+        animation and queued lines — safe to call mid-typing."""
+        self._tmr.stop()
+        self._queue.clear()
+        self._typing = False
+        self.clear()
+
+    def add_history_line(self, text: str, ts: str = ""):
+        """Render a past-session line instantly (no typewriter), dimmed,
+        so it reads clearly as history rather than a live event."""
+        tl = text.lower()
+        if   tl.startswith("you:"):  base = C.TEXT_MED
+        elif tl.startswith("liya:"): base = C.PRI_DIM
+        else:                        base = C.TEXT_MED
+
+        cur = self.textCursor()
+        cur.movePosition(cur.MoveOperation.End)
+        fmt = cur.charFormat()
+        fmt.setForeground(QBrush(qcol(base)))
+        prefix = f"[{ts}] " if ts else ""
+        cur.insertText(f"{prefix}{text}\n", fmt)
+        self.setTextCursor(cur)
+        self.ensureCursorVisible()
+
+    def add_separator(self, label: str):
+        cur = self.textCursor()
+        cur.movePosition(cur.MoveOperation.End)
+        fmt = cur.charFormat()
+        fmt.setForeground(QBrush(qcol(C.BORDER_B)))
+        cur.insertText(f"── {label} ──\n", fmt)
+        self.setTextCursor(cur)
+        self.ensureCursorVisible()
+
     def _enqueue(self, text: str):
         self._queue.append(text)
         if not self._typing:
@@ -1128,6 +1177,11 @@ class MainWindow(QMainWindow):
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(0)
 
+        self._sessions_panel = self._build_sessions_panel()
+        self._sessions_panel.setMaximumWidth(0)   # collapsed by default
+        self._sessions_open  = False
+        body.addWidget(self._sessions_panel, stretch=0)
+
         self._left_panel = self._build_left_panel()
         body.addWidget(self._left_panel, stretch=0)
 
@@ -1162,8 +1216,11 @@ class MainWindow(QMainWindow):
         self._update_metrics()
 
         # ── cross-thread signals ─────────────────────────────────────────────
-        self._log_sig.connect(self._log.append_log)
+        self._log_sig.connect(self._handle_log)
         self._state_sig.connect(self._apply_state)
+
+        # ── replay previous session's conversation into the Activity Log ────
+        self._load_conversation_history()
 
         # ── config / setup ───────────────────────────────────────────────────
         self._ready = self._check_config()
@@ -1235,6 +1292,62 @@ class MainWindow(QMainWindow):
         except Exception:
             self._proc_lbl.setText("PROC  --")
 
+        self._update_tasks_panel()
+
+    # ── task queue panel ─────────────────────────────────────────────────────
+    _TASK_COLORS = {
+        "pending":   C.ACC2,
+        "running":   C.PRI,
+        "completed": C.GREEN,
+        "failed":    C.RED,
+        "cancelled": C.TEXT_DIM,
+    }
+    _TASK_ICONS = {
+        "pending":   "⏳",
+        "running":   "▶",
+        "completed": "✔",
+        "failed":    "✖",
+        "cancelled": "⊘",
+    }
+
+    def _update_tasks_panel(self):
+        if not hasattr(self, "_tasks_list_lay"):
+            return
+        queue = get_queue()
+        tasks = queue.get_all_statuses() if queue else []
+
+        # queued/running first (oldest first), then finished (most recent first)
+        active   = [t for t in tasks if t["status"] in ("pending", "running")]
+        finished = [t for t in tasks if t["status"] not in ("pending", "running")]
+        active.sort(key=lambda t: t.get("created_at") or "")
+        finished.sort(key=lambda t: t.get("finished_at") or "", reverse=True)
+        ordered = active + finished[:8]
+
+        while self._tasks_list_lay.count() > 1:
+            item = self._tasks_list_lay.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        if not ordered:
+            empty = QLabel("No tasks queued.")
+            empty.setFont(QFont("Courier New", 7))
+            empty.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent;")
+            self._tasks_list_lay.insertWidget(0, empty)
+            return
+
+        for i, t in enumerate(ordered):
+            status = t.get("status", "pending")
+            color  = self._TASK_COLORS.get(status, C.TEXT_DIM)
+            icon   = self._TASK_ICONS.get(status, "•")
+            row = QLabel(f"{icon}  [{status.upper()}]  {t.get('goal', '')}")
+            row.setFont(QFont("Courier New", 7))
+            row.setWordWrap(True)
+            row.setStyleSheet(
+                f"color: {color}; background: transparent; "
+                f"border-bottom: 1px solid {C.BORDER}; padding-bottom: 3px;"
+            )
+            self._tasks_list_lay.insertWidget(i, row)
+
     # ── header ───────────────────────────────────────────────────────────────
     def _build_header(self) -> QWidget:
         w = QWidget()
@@ -1251,6 +1364,22 @@ class MainWindow(QMainWindow):
             l.setFont(QFont("Courier New", 8))
             l.setStyleSheet(f"color: {color}; background: transparent;")
             return l
+
+        self._sessions_toggle = QPushButton("☰")
+        self._sessions_toggle.setFixedSize(26, 26)
+        self._sessions_toggle.setFont(QFont("Courier New", 11, QFont.Weight.Bold))
+        self._sessions_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._sessions_toggle.setToolTip("Toggle past sessions")
+        self._sessions_toggle.setStyleSheet(f"""
+            QPushButton {{
+                background: {C.PANEL}; color: {C.PRI};
+                border: 1px solid {C.PRI_DIM}; border-radius: 5px;
+            }}
+            QPushButton:hover {{ background: {C.PRI_GHO}; border: 1px solid {C.PRI}; }}
+        """)
+        self._sessions_toggle.clicked.connect(self._toggle_sessions)
+        lay.addWidget(self._sessions_toggle)
+        lay.addSpacing(10)
 
         lay.addWidget(_badge("LIYA", C.PRI_DIM))
         lay.addStretch()
@@ -1368,6 +1497,118 @@ class MainWindow(QMainWindow):
 
         return w
 
+    # ── sessions drawer — collapsible past-conversation list ───────────────────
+    _SESSIONS_W = 220
+
+    def _build_sessions_panel(self) -> QWidget:
+        w = QWidget()
+        w.setStyleSheet(f"background: {C.DARK}; border-right: 1px solid {C.BORDER};")
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(8, 10, 8, 10)
+        lay.setSpacing(6)
+
+        hdr = QLabel("✦ SESSIONS")
+        hdr.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+        hdr.setStyleSheet(
+            f"color: {C.PRI}; background: transparent; "
+            f"border-bottom: 1px solid {C.BORDER}; padding-bottom: 4px;"
+        )
+        lay.addWidget(hdr)
+
+        self._live_btn = QPushButton("🔴  LIVE  (current)")
+        self._live_btn.setFixedHeight(28)
+        self._live_btn.setFont(QFont("Courier New", 7, QFont.Weight.Bold))
+        self._live_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._live_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {C.PRI_GHO}; color: {C.PRI};
+                border: 1px solid {C.PRI}; border-radius: 4px; text-align: left; padding-left: 8px;
+            }}
+            QPushButton:hover {{ background: {C.PANEL2}; }}
+        """)
+        self._live_btn.clicked.connect(self._return_to_live)
+        lay.addWidget(self._live_btn)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet(f"""
+            QScrollArea {{ background: transparent; border: none; }}
+            QScrollBar:vertical {{ background: {C.BG}; width: 8px; border: none; }}
+            QScrollBar::handle:vertical {{ background: {C.BORDER_B}; border-radius: 4px; min-height: 20px; }}
+        """)
+        self._sessions_list = QWidget()
+        self._sessions_list.setStyleSheet("background: transparent;")
+        self._sessions_list_lay = QVBoxLayout(self._sessions_list)
+        self._sessions_list_lay.setContentsMargins(0, 0, 0, 0)
+        self._sessions_list_lay.setSpacing(4)
+        self._sessions_list_lay.addStretch()
+        scroll.setWidget(self._sessions_list)
+        lay.addWidget(scroll, stretch=1)
+
+        self._refresh_sessions_list()
+        return w
+
+    def _refresh_sessions_list(self):
+        # clear existing rows (keep the trailing stretch)
+        while self._sessions_list_lay.count() > 1:
+            item = self._sessions_list_lay.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        grouped = load_history_grouped_by_date()
+        if not grouped:
+            empty = QLabel("No past sessions yet.")
+            empty.setFont(QFont("Courier New", 7))
+            empty.setStyleSheet(f"color: {C.TEXT_DIM}; background: transparent;")
+            empty.setWordWrap(True)
+            self._sessions_list_lay.insertWidget(0, empty)
+            return
+
+        for i, (date, entries) in enumerate(grouped.items()):
+            btn = QPushButton(f"{date}\n{len(entries)} messages")
+            btn.setFixedHeight(40)
+            btn.setFont(QFont("Courier New", 7))
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: {C.PANEL}; color: {C.TEXT_MED};
+                    border: 1px solid {C.BORDER}; border-radius: 4px;
+                    text-align: left; padding: 4px 8px;
+                }}
+                QPushButton:hover {{ border: 1px solid {C.PRI_DIM}; color: {C.WHITE}; }}
+            """)
+            btn.clicked.connect(lambda _, d=date, e=entries: self._show_session(d, e))
+            self._sessions_list_lay.insertWidget(i, btn)
+
+    def _toggle_sessions(self):
+        target = 0 if self._sessions_open else self._SESSIONS_W
+        self._sessions_open = not self._sessions_open
+        if self._sessions_open:
+            self._refresh_sessions_list()
+        anim = QPropertyAnimation(self._sessions_panel, b"maximumWidth", self)
+        anim.setDuration(180)
+        anim.setStartValue(self._sessions_panel.maximumWidth())
+        anim.setEndValue(target)
+        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        anim.start()
+        self._sessions_anim = anim  # keep a reference alive
+
+    def _show_session(self, date: str, entries: list):
+        self._log.reset()
+        self._log.add_separator(f"Session: {date}")
+        for e in entries:
+            text = e.get("text", "") if isinstance(e, dict) else str(e)
+            ts   = e.get("ts", "").split(" ")[-1] if isinstance(e, dict) else ""
+            if text:
+                self._log.add_history_line(text, ts)
+        self._log.add_separator("End of session — press LIVE to return")
+        self._live_btn.setText("🔴  LIVE  (view current)")
+
+    def _return_to_live(self):
+        self._log.reset()
+        self._load_conversation_history()
+        self._live_btn.setText("🔴  LIVE  (current)")
+
     # ── center bottom: file upload + command input ────────────────────────────
     def _build_center_bottom(self) -> QWidget:
         w = QWidget()
@@ -1458,9 +1699,34 @@ class MainWindow(QMainWindow):
             l.setStyleSheet(f"color: {C.TEXT_MED}; background: transparent;")
             return l
 
-        lay.addWidget(_sec("ACTIVITY LOG"))
+        lay.addWidget(_sec("ACTIVITY LOG  ·  CONVERSATION HISTORY"))
         self._log = LogWidget()
-        lay.addWidget(self._log, stretch=1)
+        lay.addWidget(self._log, stretch=6)
+
+        sep0 = QFrame()
+        sep0.setFrameShape(QFrame.Shape.HLine)
+        sep0.setStyleSheet(f"color: {C.BORDER}; margin: 2px 0;")
+        lay.addWidget(sep0)
+
+        lay.addWidget(_sec("TASK QUEUE  ·  QUEUED / FINISHED"))
+        task_scroll = QScrollArea()
+        task_scroll.setWidgetResizable(True)
+        task_scroll.setStyleSheet(f"""
+            QScrollArea {{ background: transparent; border: 1px solid {C.BORDER}; border-radius: 6px; }}
+            QScrollBar:vertical {{ background: {C.BG}; width: 8px; border: none; }}
+            QScrollBar::handle:vertical {{ background: {C.BORDER_B}; border-radius: 4px; min-height: 20px; }}
+        """)
+        task_scroll.setFixedHeight(130)
+        self._tasks_list = QWidget()
+        self._tasks_list.setStyleSheet(f"background: {C.PANEL};")
+        self._tasks_list_lay = QVBoxLayout(self._tasks_list)
+        self._tasks_list_lay.setContentsMargins(6, 6, 6, 6)
+        self._tasks_list_lay.setSpacing(4)
+        self._tasks_list_lay.addStretch()
+        task_scroll.setWidget(self._tasks_list)
+        lay.addWidget(task_scroll, stretch=0)
+
+        self._update_tasks_panel()
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
@@ -1575,9 +1841,34 @@ class MainWindow(QMainWindow):
         if not txt:
             return
         self._input.clear()
-        self._log.append_log(f"You: {txt}")
+        self._handle_log(f"You: {txt}")
         if self.on_text_command:
             threading.Thread(target=self.on_text_command, args=(txt,), daemon=True).start()
+
+    # ── logging (live) ───────────────────────────────────────────────────────
+    def _handle_log(self, text: str):
+        """Single entry point for all live log lines: renders it, and — for
+        actual conversation turns — persists it so it can be replayed as
+        history the next time LIYA starts up."""
+        self._log.append_log(text)
+        tl = text.lower()
+        if tl.startswith("you:") or tl.startswith("liya:"):
+            threading.Thread(
+                target=append_history_entry, args=(text,), daemon=True
+            ).start()
+
+    # ── logging (history replay) ─────────────────────────────────────────────
+    def _load_conversation_history(self):
+        entries = load_history()
+        if not entries:
+            return
+        self._log.add_separator("Previous conversation")
+        for e in entries:
+            text = e.get("text", "") if isinstance(e, dict) else str(e)
+            ts   = e.get("ts", "")   if isinstance(e, dict) else ""
+            if text:
+                self._log.add_history_line(text, ts)
+        self._log.add_separator("New session")
 
     # ── state ─────────────────────────────────────────────────────────────────
     def _apply_state(self, state: str):

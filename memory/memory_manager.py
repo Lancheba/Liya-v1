@@ -323,3 +323,78 @@ def format_memory_for_prompt(memory: dict | None) -> str:
         result = result[:3997] + "…"
 
     return result + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Conversation history — local transcript log for the Activity Log panel.
+# Independent of the memory categories above; always local-file, never
+# synced to Firestore (it's just UI convenience, not durable "memory").
+# ---------------------------------------------------------------------------
+HISTORY_PATH        = BASE_DIR / "memory" / "conversation_history.json"
+HISTORY_MAX_STORED  = 500   # lines kept on disk
+HISTORY_MAX_SHOWN   = 60    # lines re-displayed in the UI on startup
+_history_lock       = Lock()
+
+
+def append_history_entry(line: str) -> None:
+    """Append a single transcript line (e.g. 'You: ...' / 'Liya: ...') to the
+    local conversation history file, trimming to HISTORY_MAX_STORED lines."""
+    if not line or not line.strip():
+        return
+    with _history_lock:
+        try:
+            entries = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+            if not isinstance(entries, list):
+                entries = []
+        except Exception:
+            entries = []
+
+        entries.append({
+            "text": line,
+            "ts": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        })
+        if len(entries) > HISTORY_MAX_STORED:
+            entries = entries[-HISTORY_MAX_STORED:]
+
+        try:
+            HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+            HISTORY_PATH.write_text(
+                json.dumps(entries, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except Exception as e:
+            print(f"[Memory] ⚠️  Could not save conversation history: {e}")
+
+
+def load_history(limit: int = HISTORY_MAX_SHOWN) -> list[dict]:
+    """Return the most recent `limit` conversation history entries,
+    each as {"text": ..., "ts": ...}. Returns [] if none exist."""
+    try:
+        entries = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+        if not isinstance(entries, list):
+            return []
+        return entries[-limit:]
+    except Exception:
+        return []
+
+
+def load_history_grouped_by_date() -> "dict[str, list[dict]]":
+    """Return ALL stored history entries grouped by calendar date
+    (YYYY-MM-DD), most recent date first, each date's entries in
+    chronological order. Used to power a 'past sessions' list in the UI."""
+    try:
+        entries = json.loads(HISTORY_PATH.read_text(encoding="utf-8"))
+        if not isinstance(entries, list):
+            return {}
+    except Exception:
+        return {}
+
+    grouped: dict[str, list[dict]] = {}
+    for e in entries:
+        if not isinstance(e, dict):
+            continue
+        ts = e.get("ts", "")
+        date = ts.split(" ")[0] if ts else "unknown"
+        grouped.setdefault(date, []).append(e)
+
+    return dict(sorted(grouped.items(), reverse=True))
