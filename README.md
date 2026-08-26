@@ -18,6 +18,39 @@ replanning, and reports back with proof of what it actually did.
 
 ---
 
+## Quick start
+
+```bash
+git clone https://github.com/Lancheba/Liya-v1.git
+cd Liya-v1
+python setup.py
+```
+
+Create `config/api_keys.json`:
+
+```json
+{
+  "gemini_api_key": "YOUR_GEMINI_API_KEY",
+  "os_system": "windows"
+}
+```
+
+Then run the designated demo end-to-end (no server needed):
+
+```bash
+python demo/run_demo.py
+```
+
+This submits a real multi-tool goal to the actual task queue and
+streams the live execution trace as it happens — see
+[`evidence/cloud_run_deployment_proof.log`](evidence/cloud_run_deployment_proof.log)
+for what a full run looks like, including live failure recovery.
+
+Full setup detail, backend/Cloud Run instructions, and tool governance
+are documented below.
+
+---
+
 ## How it's put together
 
 ![Liya architecture diagram](diagrams/architecture.png)
