@@ -72,6 +72,9 @@ search-grounding, with DuckDuckGo and Bing as fallback backends).
   category:
   [dev.to/lanchenba/we-found-a-real-security-hole-in-our-own-agent-by-running-it-two-ways-36ok](https://dev.to/lanchenba/we-found-a-real-security-hole-in-our-own-agent-by-running-it-two-ways-36ok)
 
+- Shared publicly on LinkedIn with #AllThingsAgenticHackathon:
+  [linkedin.com/feed/update/urn:li:activity:7498305380020674560](https://www.linkedin.com/feed/update/urn:li:activity:7498305380020674560/)
+
 ## Challenges we ran into
 
 - **Governance parity across two execution paths.** The first version
