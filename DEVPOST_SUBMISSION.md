@@ -68,6 +68,10 @@ search-grounding, with DuckDuckGo and Bing as fallback backends).
   and `gcloud run deploy` steps:
   [`evidence/cloud_build_success.png`](evidence/cloud_build_success.png)
 
+- Written up in more depth for the hackathon's bonus content
+  category:
+  [dev.to/lanchenba/we-found-a-real-security-hole-in-our-own-agent-by-running-it-two-ways-36ok](https://dev.to/lanchenba/we-found-a-real-security-hole-in-our-own-agent-by-running-it-two-ways-36ok)
+
 ## Challenges we ran into
 
 - **Governance parity across two execution paths.** The first version
