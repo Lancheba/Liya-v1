@@ -2,9 +2,21 @@ Liya — Cloud Run deployment + live execution proof
 Captured: 2026-08-26
 
 Service URL: https://liya-backend-kpgp36hf4q-uc.a.run.app
-GCP Project: liya-agent-506706
+GCP Project: liya-agent-506706 (project number: 250703517715 — see Cloud
+             Build log URL below, and cloud_run_console.png)
 Cloud Build:  d99dcd44-85e5-474b-a7bb-c291e42332fe (STATUS: SUCCESS)
 Image:        gcr.io/liya-agent-506706/liya-backend:d99dcd44-85e5-474b-a7bb-c291e42332fe
+
+Note on Cloud Run URL format: this log's requests hit the hash-based URL
+(liya-backend-kpgp36hf4q-uc.a.run.app); evidence/cloud_run_console.png
+shows the project-number-based URL instead
+(liya-backend-250703517715.us-central1.run.app). Both are valid Cloud Run
+URL formats for the same service — 250703517715 is this project's
+number, confirmed by the Cloud Build log link on line 15 below
+("...builds/...?project=250703517715"), which is the same build ID
+(d99dcd44...) referenced throughout this file and shown succeeding in
+evidence/cloud_build_success.png. Same project, same service, two valid
+URL forms — not two deployments.
 
 --- Cloud Build submission ---
 

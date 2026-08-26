@@ -67,6 +67,14 @@ search-grounding, with DuckDuckGo and Bing as fallback backends).
 - Google Cloud Build screenshot showing the successful build, push,
   and `gcloud run deploy` steps:
   [`evidence/cloud_build_success.png`](evidence/cloud_build_success.png)
+  (build ID `d99dcd44-85e5-474b-a7bb-c291e42332fe` — the same build
+  referenced throughout the deployment log above)
+
+  *Note: the deployment log shows requests against the hash-based Cloud
+  Run URL (`...kpgp36hf4q-uc.a.run.app`), while the console screenshot
+  shows the project-number-based URL (`...250703517715...run.app`).
+  Both are valid Cloud Run URL formats for the same service — see the
+  reconciliation note at the top of the deployment log.*
 
 - Written up in more depth for the hackathon's bonus content
   category:
