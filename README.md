@@ -119,6 +119,16 @@ Then create `config/api_keys.json`:
 OS-specific launchers (`actions/open_app.py`, `actions/desktop.py`, etc.)
 are used.
 
+**Config precedence — local file vs. environment variables.**
+`config/ai_client.py` and `config/firestore_client.py` read from
+`config/api_keys.json` first (used above for local/desktop runs). That
+file is never baked into the Cloud Run image — instead, the deployed
+container falls back to environment variables set from Secret Manager:
+`GEMINI_API_KEY` (see `cloudbuild.yaml`'s `--set-secrets`) and
+`GOOGLE_CLOUD_PROJECT` (`--set-env-vars`). Same code path, same two
+config values, just sourced differently depending on where it's running
+— nothing hardcoded into the image either way.
+
 Run the desktop app:
 
 ```bash
@@ -210,3 +220,19 @@ nothing here is mocked or simulated for the demo.
 | Google ADK agent path | `python demo/run_demo_http.py --url http://localhost:8080 --key dev --adk` | Same goal run through `agent/adk_runner.py`'s real `InMemoryRunner` session loop |
 | Background/async execution | `POST /task` returns a `task_id` immediately; poll `GET /task/{task_id}` later | Task keeps running after the HTTP request returns |
 | Full execution trace, not just a final answer | `GET /task/{task_id}/trace` | Every plan/step/replan/failure event, queryable per task |
+
+---
+
+## Known limitation — Gemini free-tier rate limits
+
+`web_search`'s primary backend is Gemini itself; on a free-tier API key
+it can hit `429 RESOURCE_EXHAUSTED` under repeated use, since
+search-grounded requests have tighter quotas than plain text generation.
+When that happens, `actions/web_search.py` falls back to DuckDuckGo
+(`ddgs`), then Bing scraping — both of which can also fail from a
+datacenter IP (cloud egress is more likely to get rate-limited by these
+than a residential one). If all backends fail, the step fails cleanly
+and `error_handler.py` replans rather than crashing — the same recovery
+path exercised deliberately in `demo/demo_failure_recovery.py`. Fix:
+attach billing to the Gemini API key (Google AI Studio → API Keys →
+Activate billing) to raise the quota well above free-tier limits.
