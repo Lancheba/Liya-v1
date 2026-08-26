@@ -12,7 +12,7 @@ Note on Cloud Run URL format: this log's requests hit the hash-based URL
 shows the project-number-based URL instead
 (liya-backend-250703517715.us-central1.run.app). Both are valid Cloud Run
 URL formats for the same service — 250703517715 is this project's
-number, confirmed by the Cloud Build log link on line 15 below
+number, confirmed by the Cloud Build log link on line 27 below
 ("...builds/...?project=250703517715"), which is the same build ID
 (d99dcd44...) referenced throughout this file and shown succeeding in
 evidence/cloud_build_success.png. Same project, same service, two valid
