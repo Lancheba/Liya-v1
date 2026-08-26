@@ -14,3 +14,4 @@ fastapi>=0.111
 uvicorn[standard]>=0.29
 pydantic>=2.0
 requests>=2.28
+duckduckgo-search>=6.0

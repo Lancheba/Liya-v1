@@ -36,14 +36,27 @@ _API_CONFIG_PATH = _BASE_DIR / "config" / "api_keys.json"
 
 
 def _load_firestore_config() -> tuple[str | None, str]:
-    """Returns (project_id, user_id). project_id is None when not configured."""
+    """
+    Returns (project_id, user_id). project_id is None when not configured.
+
+    Local/desktop: reads config/api_keys.json (firestore_project_id).
+    Cloud Run: that file doesn't exist in the container, so fall back to
+    the GOOGLE_CLOUD_PROJECT env var, which cloudbuild.yaml already sets
+    (--set-env-vars=GOOGLE_CLOUD_PROJECT=$PROJECT_ID,...).
+    """
     try:
         data = json.loads(_API_CONFIG_PATH.read_text(encoding="utf-8"))
         project_id = data.get("firestore_project_id") or None
         user_id = data.get("firestore_user_id", "default") or "default"
-        return project_id, user_id
+        if project_id:
+            return project_id, user_id
     except Exception:
-        return None, "default"
+        pass
+
+    env_project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if env_project:
+        return env_project, "default"
+    return None, "default"
 
 
 @lru_cache(maxsize=1)

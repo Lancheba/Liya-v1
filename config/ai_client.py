@@ -10,6 +10,7 @@ Uses the new unified `google-genai` SDK (pip install google-genai), not the
 old deprecated `google-generativeai` package.
 """
 import json
+import os
 import sys
 from functools import lru_cache
 from pathlib import Path
@@ -39,8 +40,24 @@ MODEL_LIVE       = "gemini-3.1-flash-live-preview"   # Live API: voice loop / sc
 
 
 def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
+    """
+    Local/desktop: reads config/api_keys.json.
+    Cloud Run: that file doesn't exist in the container (by design - it's
+    never baked into the image), so fall back to the GEMINI_API_KEY env var,
+    which cloudbuild.yaml injects from Secret Manager
+    (--set-secrets=GEMINI_API_KEY=gemini-api-key:latest).
+    """
+    try:
+        with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)["gemini_api_key"]
+    except FileNotFoundError:
+        env_key = os.environ.get("GEMINI_API_KEY")
+        if env_key:
+            return env_key
+        raise RuntimeError(
+            "No Gemini API key found: config/api_keys.json is missing and "
+            "the GEMINI_API_KEY environment variable is not set."
+        )
 
 
 def get_api_key() -> str:
