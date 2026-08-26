@@ -177,6 +177,7 @@ _FAILURE_PHRASES = (
     "please provide", "please specify", "i need more information",
     "missing required", "not enough information", "requires a valid",
     "requires additional", "no file path", "cannot proceed without",
+    "no results found", "0 result(s)", "no results were found",
 )
 
 
