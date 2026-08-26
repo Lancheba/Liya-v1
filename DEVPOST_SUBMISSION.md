@@ -56,6 +56,18 @@ Firestore, Google Cloud Build, FastAPI, PyQt6 (desktop UI), Playwright
 **Other data sources used:** live web search results (Gemini
 search-grounding, with DuckDuckGo and Bing as fallback backends).
 
+## Proof it's real
+
+- Live production log of a real Cloud Run request, including a real
+  Gemini quota failure and successful fallback recovery:
+  [`evidence/cloud_run_deployment_proof.log`](evidence/cloud_run_deployment_proof.log)
+- Google Cloud Run Console screenshot showing the deployed, healthy
+  service and live request traffic:
+  [`evidence/cloud_run_console.png`](evidence/cloud_run_console.png)
+- Google Cloud Build screenshot showing the successful build, push,
+  and `gcloud run deploy` steps:
+  [`evidence/cloud_build_success.png`](evidence/cloud_build_success.png)
+
 ## Challenges we ran into
 
 - **Governance parity across two execution paths.** The first version
