@@ -26,23 +26,29 @@ cd Liya-v1
 python setup.py
 ```
 
-Create `config/api_keys.json`:
+`setup.py` installs everything in `requirements.txt` and the Playwright
+browsers `actions/browser_control.py` needs.
 
-```json
-{
-  "gemini_api_key": "YOUR_GEMINI_API_KEY",
-  "os_system": "windows"
-}
+Then just run the desktop app:
+
+```bash
+python main.py
 ```
 
-Then run the designated demo end-to-end (no server needed):
+On first launch, with no `config/api_keys.json` present yet, a setup
+popup appears asking for your Gemini API key and OS — enter it once,
+submit, and Liya writes `config/api_keys.json` itself and goes live.
+No manual config file editing needed.
+
+To see the designated demo scenario run end-to-end with a live trace
+instead (no UI, no server needed — useful once `config/api_keys.json`
+already exists from the step above):
 
 ```bash
 python demo/run_demo.py
 ```
 
-This submits a real multi-tool goal to the actual task queue and
-streams the live execution trace as it happens — see
+See
 [`evidence/cloud_run_deployment_proof.log`](evidence/cloud_run_deployment_proof.log)
 for what a full run looks like, including live failure recovery.
 
