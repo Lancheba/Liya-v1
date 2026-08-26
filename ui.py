@@ -64,27 +64,27 @@ _OS = platform.system()   # "Windows" | "Darwin" | "Linux"
 # Colour palette — cyan/teal cyberpunk theme
 # ---------------------------------------------------------------------------
 class C:
-    BG        = "#00080a"
-    PANEL     = "#001318"
-    PANEL2    = "#001a20"
-    BORDER    = "#004a55"
-    BORDER_B  = "#1fb8c9"
-    BORDER_A  = "#00707f"
-    PRI       = "#2ee6e6"
-    PRI_DIM   = "#33999b"
-    PRI_GHO   = "#00252a"
-    ACC       = "#7df9ff"
-    ACC2      = "#b3f0ff"
+    BG        = "#0b0209"
+    PANEL     = "#1c0813"
+    PANEL2    = "#241019"
+    BORDER    = "#7a2350"
+    BORDER_B  = "#ff5fa8"
+    BORDER_A  = "#c9457f"
+    PRI       = "#ff4fa3"
+    PRI_DIM   = "#cc3d82"
+    PRI_GHO   = "#3d0f26"
+    ACC       = "#ff9ecf"
+    ACC2      = "#ffd1e8"
     GREEN     = "#4dffb8"
     GREEN_D   = "#1acc8f"
     RED       = "#ff3366"
-    MUTED_C   = "#2299aa"
-    TEXT      = "#cceeff"
-    TEXT_DIM  = "#447f88"
-    TEXT_MED  = "#77c2cc"
-    WHITE     = "#e8fbff"
-    DARK      = "#000e11"
-    BAR_BG    = "#001a20"
+    MUTED_C   = "#a94a78"
+    TEXT      = "#ffe3f1"
+    TEXT_DIM  = "#7a4a63"
+    TEXT_MED  = "#e08fc0"
+    WHITE     = "#fff2f9"
+    DARK      = "#12040b"
+    BAR_BG    = "#241019"
 
 
 def qcol(h: str, a: int = 255) -> QColor:
@@ -522,7 +522,7 @@ class HudCanvas(QWidget):
         fw    = min(W, H)
 
         # subtle pink grid dots
-        p.setPen(QPen(qcol("#002a30"), 1))
+        p.setPen(QPen(qcol("#2a0a1c"), 1))
         for x in range(0, W, 48):
             for y in range(0, H, 48):
                 p.drawPoint(x, y)
@@ -616,7 +616,7 @@ class HudCanvas(QWidget):
             p.drawPixmap(int(cx - fsz / 2), int(cy - fsz / 2), scaled)
         else:
             orb_r = int(fw * 0.27 * self._scale)
-            oc    = (130, 0, 60) if self.muted else (100, 0, 80)
+            oc    = (150, 20, 80) if self.muted else (255, 60, 140)
             for i in range(8, 0, -1):
                 r2  = int(orb_r * i / 8)
                 frc = i / 8
@@ -805,12 +805,12 @@ class LogWidget(QTextEdit):
 # File drop zone
 # ---------------------------------------------------------------------------
 _FILE_ICONS = {
-    "image":   ("🖼", "#2ee6e6"), "video":   ("🎬", "#7df9ff"),
+    "image":   ("🖼", "#ff4fa3"), "video":   ("🎬", "#ff9ecf"),
     "audio":   ("🎵", "#44ccff"), "pdf":     ("📄", "#ff4466"),
     "word":    ("📝", "#88aaff"), "excel":   ("📊", "#4dffb8"),
     "code":    ("💻", "#ffcc00"), "archive": ("📦", "#ff8844"),
-    "pptx":    ("📊", "#ff6622"), "text":    ("📃", "#b3f0ff"),
-    "data":    ("🔧", "#66d9ff"), "unknown": ("📎", "#77c2cc"),
+    "pptx":    ("📊", "#ff6622"), "text":    ("📃", "#ffd1e8"),
+    "data":    ("🔧", "#66d9ff"), "unknown": ("📎", "#e08fc0"),
 }
 _EXT_TO_CAT = {
     **dict.fromkeys(
@@ -943,7 +943,7 @@ class _DropCanvas(QWidget):
         rect = QRectF(pad, pad, W - pad * 2, H - pad * 2)
 
         bg_col = qcol(
-            "#002530" if z._drag_over else ("#001a20" if z._hovering else C.PANEL),
+            "#3d1226" if z._drag_over else ("#241019" if z._hovering else C.PANEL),
             190,
         )
         p.setBrush(QBrush(bg_col))
@@ -1080,7 +1080,7 @@ class SetupOverlay(QWidget):
         self._key_input.setFixedHeight(32)
         self._key_input.setStyleSheet(f"""
             QLineEdit {{
-                background: #001014; color: {C.TEXT};
+                background: #170610; color: {C.TEXT};
                 border: 1px solid {C.BORDER}; border-radius: 4px; padding: 4px 8px;
             }}
             QLineEdit:focus {{ border: 1px solid {C.PRI}; }}
@@ -1134,9 +1134,9 @@ class SetupOverlay(QWidget):
     def _sel(self, key: str):
         self._sel_os = key
         pal = {
-            "windows": (C.PRI,   "#002010"),
-            "mac":     (C.ACC2,  "#0a1818"),
-            "linux":   (C.GREEN, "#0a1a18"),
+            "windows": (C.PRI,   "#2a0a1c"),
+            "mac":     (C.ACC2,  "#22091a"),
+            "linux":   (C.GREEN, "#1a0c14"),
         }
         for k, btn in self._os_btns.items():
             if k == key:
@@ -1150,7 +1150,7 @@ class SetupOverlay(QWidget):
             else:
                 btn.setStyleSheet(f"""
                     QPushButton {{
-                        background: #001014; color: {C.TEXT_DIM};
+                        background: #170610; color: {C.TEXT_DIM};
                         border: 1px solid {C.BORDER}; border-radius: 4px;
                     }}
                     QPushButton:hover {{ color: {C.TEXT}; border: 1px solid {C.BORDER_B}; }}
@@ -1477,10 +1477,10 @@ class MainWindow(QMainWindow):
 
         # Speedometer gauges
         self._spdm_cpu = Speedometer("CPU",  "%",    C.PRI)
-        self._spdm_mem = Speedometer("MEM",  "%",    "#7de8ff")
-        self._spdm_net = Speedometer("NET",  "MB/s", "#33bbee")
-        self._spdm_gpu = Speedometer("GPU",  "%",    "#66d9ff")
-        self._spdm_tmp = Speedometer("TEMP", "°C",   "#ff6b5b")
+        self._spdm_mem = Speedometer("MEM",  "%",    "#ff8fc9")
+        self._spdm_net = Speedometer("NET",  "MB/s", "#ff5fa8")
+        self._spdm_gpu = Speedometer("GPU",  "%",    "#ffb3d9")
+        self._spdm_tmp = Speedometer("TEMP", "°C",   "#ff6f91")
 
         for spdm in [self._spdm_cpu, self._spdm_mem, self._spdm_net,
                      self._spdm_gpu, self._spdm_tmp]:
@@ -1695,7 +1695,7 @@ class MainWindow(QMainWindow):
         self._input.setFixedHeight(32)
         self._input.setStyleSheet(f"""
             QLineEdit {{
-                background: {rgba("#001016", 210)}; color: {C.WHITE};
+                background: {rgba("#170610", 210)}; color: {C.WHITE};
                 border: 1px solid {rgba(C.BORDER_B, 110)}; border-radius: 12px; padding: 3px 10px;
             }}
             QLineEdit:focus {{ border: 1px solid {C.PRI}; }}
@@ -1847,7 +1847,7 @@ class MainWindow(QMainWindow):
             self._mute_btn.setText("🔇")
             self._mute_btn.setStyleSheet(f"""
                 QPushButton {{
-                    background: {rgba("#0a1a1a", 220)}; color: {C.MUTED_C};
+                    background: {rgba("#2a0f1c", 220)}; color: {C.MUTED_C};
                     border: 1px solid {C.MUTED_C}; border-radius: 16px;
                 }}
             """)
@@ -1855,10 +1855,10 @@ class MainWindow(QMainWindow):
             self._mute_btn.setText("🎙")
             self._mute_btn.setStyleSheet(f"""
                 QPushButton {{
-                    background: {rgba("#00181a", 220)}; color: {C.GREEN};
+                    background: {rgba("#220a15", 220)}; color: {C.GREEN};
                     border: 1px solid {C.GREEN}; border-radius: 16px;
                 }}
-                QPushButton:hover {{ background: {rgba("#002530", 230)}; }}
+                QPushButton:hover {{ background: {rgba("#3d1226", 230)}; }}
             """)
 
     # ── send command ──────────────────────────────────────────────────────────
