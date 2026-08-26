@@ -74,6 +74,17 @@ def _tool_text(r) -> str:
     return r
 
 
+_TASK_LABEL_KEYS = ("goal", "message", "query", "app_name", "url", "text", "task", "prompt")
+
+def _task_goal_label(name: str, args: dict) -> str:
+    """Build a short human-readable label for the Task Queue panel."""
+    for k in _TASK_LABEL_KEYS:
+        v = args.get(k)
+        if v:
+            return f"{name}: {str(v)[:50]}"
+    return name
+
+
 def _clean_transcript(text: str) -> str:
     text = _CTRL_RE.sub("", text)
     text = re.sub(r"[\x00-\x08\x0b-\x1f]", "", text)
@@ -499,6 +510,7 @@ class LiyaLive:
         self._speaking_lock = threading.Lock()
         self.ui.on_text_command = self._on_text_command
         self._turn_done_event: asyncio.Event | None = None
+        self._greeted        = False
 
     def _on_text_command(self, text: str):
         if not self._loop or not self.session:
@@ -529,6 +541,24 @@ class LiyaLive:
         self.ui.write_log(f"ERR: {tool_name} — {short}")
         self.speak(f"I encountered an error in {tool_name}. {short}")
 
+    def _time_of_day_greeting_prompt(self) -> str:
+        from datetime import datetime
+        hour = datetime.now().hour
+        if hour < 12:
+            period = "morning"
+        elif hour < 17:
+            period = "afternoon"
+        elif hour < 21:
+            period = "evening"
+        else:
+            period = "late night"
+        return (
+            f"[SYSTEM] The user just launched the app. It is currently {period}. "
+            f"Greet them now with a short, warm, natural \"Good {period}\"-style "
+            f"greeting appropriate for this time of day, addressing them as "
+            f"\"Boss\", then ask how you can help."
+        )
+
     def _build_config(self) -> types.LiveConnectConfig:
         from datetime import datetime
 
@@ -544,7 +574,15 @@ class LiyaLive:
             f"Use this to calculate exact times for reminders.\n\n"
         )
 
-        parts = [time_ctx]
+        address_ctx = (
+            "[FORM OF ADDRESS]\n"
+            "Always address the user as \"Boss\" (e.g. \"Sure, Boss\", "
+            "\"On it, Boss\", \"Good morning, Boss\"). Use it naturally, "
+            "not in every single sentence, but enough that it's clearly "
+            "your habit when speaking to them.\n\n"
+        )
+
+        parts = [time_ctx, address_ctx]
         if mem_str:
             parts.append(mem_str)
         parts.append(sys_prompt)
@@ -691,6 +729,19 @@ class LiyaLive:
             result = f"Tool '{name}' failed: {e}"
             traceback.print_exc()
             self.speak_error(name, e)
+
+        if name not in ("save_memory", "agent_task"):
+            try:
+                from agent.task_queue import get_queue, TaskStatus
+                failed = isinstance(result, str) and result.startswith(f"Tool '{name}' failed:")
+                get_queue().record(
+                    goal   = _task_goal_label(name, args),
+                    status = TaskStatus.FAILED if failed else TaskStatus.COMPLETED,
+                    result = None if failed else result,
+                    error  = result if failed else "",
+                )
+            except Exception:
+                pass
 
         if not self.ui.muted:
             self.ui.set_state("LISTENING")
@@ -853,6 +904,10 @@ class LiyaLive:
                     print("[LIYA] ✅ Connected.")
                     self.ui.set_state("LISTENING")
                     self.ui.write_log("SYS: LIYA online. ♡ Ready.")
+
+                    if not self._greeted:
+                        self._greeted = True
+                        self.speak(self._time_of_day_greeting_prompt())
 
                     tg.create_task(self._send_realtime())
                     tg.create_task(self._listen_audio())

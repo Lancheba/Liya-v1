@@ -4,6 +4,7 @@ task_queue.py — Background task queue for Liya's agent executor.
 Public API (unchanged):
     get_queue() -> TaskQueue
     queue.submit(goal, priority, speak, on_complete) -> task_id
+    queue.record(goal, status, result, error) -> task_id   # history-only entry
     queue.cancel(task_id) -> bool
     queue.get_status(task_id) -> dict | None
     queue.get_all_statuses(from_firestore=False) -> list[dict]
@@ -201,6 +202,48 @@ class TaskQueue:
             pass
 
         print(f"[TaskQueue] 📥 Task queued: [{task_id}] {goal[:60]}")
+        return task_id
+
+    def record(
+        self,
+        goal:   str,
+        status: TaskStatus,
+        result: Any = None,
+        error:  str = "",
+    ) -> str:
+        """
+        Record a task that already ran synchronously outside the queue's
+        worker loop (e.g. a direct one-shot tool/action call such as a
+        reminder, weather lookup, app open, etc.) purely so it shows up in
+        the Task Queue panel's history. This does NOT get picked up and
+        (re)executed by the worker — it's a display/history record only.
+        """
+        now     = time.time()
+        task_id = str(uuid.uuid4())[:8]
+        task = Task(
+            priority    = TaskPriority.NORMAL.value,
+            created_at  = now,
+            task_id     = task_id,
+            goal        = goal,
+            status      = status,
+            result      = result,
+            error       = error,
+            started_at  = now,
+            finished_at = now,
+        )
+
+        with self._lock:
+            self._tasks[task_id] = task
+
+        threading.Thread(target=_persist_task, args=(task,), daemon=True).start()
+
+        try:
+            from observability.logger import log_task_queued
+            log_task_queued(task_id, goal, "NORMAL")
+        except Exception:
+            pass
+
+        print(f"[TaskQueue] 📌 Recorded: [{task_id}] {goal[:60]} → {status.value}")
         return task_id
 
     def cancel(self, task_id: str) -> bool:
