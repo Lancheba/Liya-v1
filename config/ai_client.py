@@ -38,6 +38,16 @@ MODEL_FLASH_LITE = "gemini-3.5-flash-lite"   # fast, cheap routing / classificat
 # guidance points to gemini-3.1-flash-live-preview.
 MODEL_LIVE       = "gemini-3.1-flash-live-preview"   # Live API: voice loop / screen narration
 
+# Open-weight Gemma model, reachable through the same google-genai Client
+# (Gemini Developer API model-garden hosting) — no separate SDK, no separate
+# API key. Used for cheap, high-volume classification calls (see
+# agent/error_handler.py) where a full Gemini call is unnecessary overhead.
+# Deliberately isolated behind its own constant + `classify_fast()` helper
+# below so a bad/unavailable Gemma deployment degrades to MODEL_FLASH_LITE
+# instead of breaking error recovery — same fallback-chain philosophy as
+# actions/web_search.py's Gemini -> DuckDuckGo -> Bing chain.
+MODEL_GEMMA      = "gemma-3-27b-it"                  # error-classification / lightweight routing
+
 
 def _get_api_key() -> str:
     """
@@ -106,3 +116,30 @@ def generate(
         contents=contents,
         config=config,
     )
+
+
+def generate_with_fallback(
+    primary_model: str,
+    fallback_model: str,
+    contents,
+    system_instruction: str | None = None,
+    **config_kwargs,
+):
+    """
+    Try `primary_model` first; on ANY failure (model not enabled for this
+    API key/region, quota, transient error) transparently retry once on
+    `fallback_model` and return that response instead.
+
+    Used to call MODEL_GEMMA for cheap classification work while keeping
+    error-recovery itself unable to fail just because Gemma isn't
+    available in a given project/region — mirrors the existing
+    Gemini -> DuckDuckGo -> Bing fallback chain in actions/web_search.py.
+
+    Returns the successful response object. Raises only if BOTH calls fail.
+    """
+    try:
+        return generate(primary_model, contents, system_instruction, **config_kwargs)
+    except Exception as primary_exc:
+        print(f"[ai_client] ⚠️ {primary_model} failed ({primary_exc}); "
+              f"falling back to {fallback_model}")
+        return generate(fallback_model, contents, system_instruction, **config_kwargs)

@@ -41,6 +41,7 @@ from actions.weather_report import weather_action as _weather_action
 from actions.flight_finder import flight_finder as _flight_finder
 from actions.file_processor import file_processor as _file_processor
 from actions.send_message import send_message as _send_message
+from memory.memory_manager import remember as _remember, forget as _forget
 
 # Set on the request path (agent/adk_runner.py) so governance can honor the
 # same `auto_approve` flag the legacy /task endpoint already respects,
@@ -210,16 +211,49 @@ def send_message_tool(receiver: str, message_text: str, platform: str = "whatsap
     return _governed("send_message", params, lambda: _send_message(params))
 
 
+def memory_tool(action: str, key: str, value: str = "", category: str = "notes") -> str:
+    """Remember or forget a durable fact about the user, persisted across
+    sessions (memory/memory_manager.py — Firestore, or local JSON fallback).
+
+    Unlike the other tools here, this isn't governed by
+    agent/governance.py's allow/confirm/deny table: it only ever touches
+    the agent's own memory store, never an external system, app, or
+    person, so there's nothing for that policy to gate.
+
+    Args:
+        action: Either "remember" (store `value` under `key`) or "forget"
+            (delete `key`).
+        key: Short identifier for the fact, e.g. "favorite_editor".
+        value: The fact to store. Required when action is "remember",
+            ignored for "forget".
+        category: One of "identity", "preferences", "projects",
+            "relationships", "wishes", "notes". Defaults to "notes".
+
+    Returns:
+        A text confirmation of what was remembered or forgotten.
+    """
+    if action == "forget":
+        return _forget(key, category)
+    return _remember(key, value, category)
+
+
 def get_liya_adk_tools() -> list[FunctionTool]:
     """Returns the set of Liya actions currently exposed to ADK agents.
 
-    8 of the repo's 16 actions are wrapped here today. The remaining 8
-    (browser_control, computer_settings, computer_control, desktop_control,
-    screen_processor, youtube_video, code_helper, dev_agent) follow the
-    identical wrapper pattern above and are the natural next additions —
-    left out of this pass because they carry real desktop/UI dependencies
-    (Playwright, pyautogui) that don't belong in a headless Cloud Run
-    container, unlike the ones below, which all run cleanly server-side.
+    9 of the repo's 16 actions are wrapped here today. memory_tool is new:
+    it's the one addition that isn't a re-wrap of an existing actions/*.py
+    module — it gives the ADK path the same durable, cross-session memory
+    the legacy planner path already had via _load_memory_context() in
+    agent/executor.py, so the agent can persist a user preference or fact
+    mid-conversation instead of only reading memory in at plan time.
+
+    The remaining 7 (browser_control, computer_settings, computer_control,
+    desktop_control, screen_processor, youtube_video, code_helper,
+    dev_agent) follow the identical wrapper pattern above and are the
+    natural next additions — left out of this pass because they carry real
+    desktop/UI dependencies (Playwright, pyautogui) that don't belong in a
+    headless Cloud Run container, unlike the ones below, which all run
+    cleanly server-side.
     """
     return [
         FunctionTool(web_search_tool),
@@ -230,4 +264,5 @@ def get_liya_adk_tools() -> list[FunctionTool]:
         FunctionTool(flight_finder_tool),
         FunctionTool(file_processor_tool),
         FunctionTool(send_message_tool),
+        FunctionTool(memory_tool),
     ]

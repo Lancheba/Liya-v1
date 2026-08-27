@@ -11,6 +11,7 @@ from typing import Callable
 from agent.planner       import create_plan, replan
 from agent.error_handler import analyze_error, generate_fix, ErrorDecision
 from agent.tool_result   import is_tool_result
+from agent.checkpoint_store import save_checkpoint, load_checkpoint, clear_checkpoint
 from config.ai_client     import generate, MODEL_FLASH, MODEL_FLASH_LITE
 
 
@@ -77,7 +78,7 @@ def _run_generated_code(description: str, speak: Callable | None = None) -> str:
             f.write(code)
             tmp_path = f.name
 
-        print(f"[Executor] ðŸ Running generated code: {tmp_path}")
+        print(f"[Executor] Running generated code: {tmp_path}")
 
         result = subprocess.run(
             [sys.executable, tmp_path],
@@ -125,7 +126,7 @@ def _inject_context(params: dict, tool: str, step_results: dict, goal: str = "")
                 combined = "\n\n---\n\n".join(all_results)
                 translated = _translate_to_goal_language(combined, goal)
                 params["content"] = translated
-                print(f"[Executor] ðŸ’‰ Injected + translated content")
+                print(f"[Executor] Injected + translated content")
 
     return params
 def _detect_language(text: str) -> str:
@@ -146,7 +147,7 @@ def _translate_to_goal_language(content: str, goal: str) -> str:
         return content
     try:
         target_lang = _detect_language(goal)
-        print(f"[Executor] ðŸŒ Translating to: {target_lang}")
+        print(f"[Executor] Translating to: {target_lang}")
 
         prompt = (
             f"You are a professional translator. "
@@ -163,7 +164,7 @@ def _translate_to_goal_language(content: str, goal: str) -> str:
         print(f"[Executor] ✅ Translation done ({target_lang})")
         return translated
     except Exception as e:
-        print(f"[Executor] âš ï¸ Translation failed: {e}")
+        print(f"[Executor] Translation failed: {e}")
         return content
 
 _FAILURE_PHRASES = (
@@ -284,7 +285,7 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
         return game_updater(parameters=parameters, player=None, speak=speak) or "Done."
 
     else:
-        print(f"[Executor] âš ï¸ Unknown tool '{tool}' — falling back to generated_code")
+        print(f"[Executor] Unknown tool '{tool}' - falling back to generated_code")
         return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)
 
 class AgentExecutor:
@@ -298,6 +299,7 @@ class AgentExecutor:
         cancel_flag: threading.Event | None = None,
         task_id:     str | None             = None,
         auto_approve: bool                  = False,  # ← NEW: for tool governance
+        resume:      bool                   = False,  # ← resume from a saved checkpoint
     ) -> str:
         import time as _time
         import os
@@ -314,8 +316,27 @@ class AgentExecutor:
         replan_attempts = 0
         completed_steps = []
         step_results    = {}
-        memory_context  = _load_memory_context()
-        plan            = create_plan(goal, context=memory_context)
+        done_step_nums  = set()
+
+        checkpoint = load_checkpoint(task_id) if (resume and task_id) else None
+        if checkpoint:
+            # Resuming a previously interrupted run: pick up exactly where
+            # it left off instead of re-planning and re-running steps whose
+            # side effects (a file write, a sent message, a booked flight)
+            # already happened.
+            plan             = checkpoint.get("plan") or {"steps": []}
+            completed_steps  = list(checkpoint.get("completed_steps") or [])
+            step_results     = {int(k): v for k, v in (checkpoint.get("step_results") or {}).items()}
+            replan_attempts  = int(checkpoint.get("replan_attempts") or 0)
+            done_step_nums   = {s.get("step") for s in completed_steps if s.get("step") is not None}
+            print(f"[Executor] ▶️ Resuming [{task_id}] from checkpoint — "
+                  f"{len(done_step_nums)} step(s) already done")
+            if speak:
+                speak(f"Picking up where I left off, sir — {len(done_step_nums)} step"
+                      f"{'s' if len(done_step_nums) != 1 else ''} already done.")
+        else:
+            memory_context  = _load_memory_context()
+            plan            = create_plan(goal, context=memory_context)
 
         log_plan_created(task_id, goal, plan.get("steps", []))
 
@@ -326,6 +347,7 @@ class AgentExecutor:
                 msg = "I couldn't create a valid plan for this task, sir."
                 if speak: speak(msg)
                 log_task_failed(task_id or "", goal, "Empty plan", replan_attempts)
+                if task_id: clear_checkpoint(task_id)
                 return msg
 
             success      = True
@@ -337,8 +359,16 @@ class AgentExecutor:
                     if speak: speak("Task cancelled, sir.")
                     log_task_cancelled(task_id or "", goal)
                     return "Task cancelled."
-
                 step_num = step.get("step", "?")
+
+                if step_num in done_step_nums:
+                    # Already completed in a prior run (resume) — its side
+                    # effect (file write, message sent, booking made, etc.)
+                    # already happened, so re-running it would duplicate
+                    # that side effect. Skip straight to the next step.
+                    print(f"[Executor] Step {step_num}: already done (resumed) — skipping")
+                    continue
+
                 tool     = step.get("tool", "generated_code")
                 desc     = step.get("description", "")
                 params   = step.get("parameters", {})
@@ -381,15 +411,19 @@ class AgentExecutor:
                         print(f"[Executor] Step {step_num} done: {display_text[:100]}")
                         log_step_success(task_id, step_num, tool, display_text[:200])
                         step_ok = True
+                        if task_id:
+                            save_checkpoint(task_id, goal, plan, step_results,
+                                             completed_steps, replan_attempts)
                         break
 
                     except SecurityException as sec_exc:
                         error_msg = str(sec_exc)
-                        print(f"[Executor] ðŸ›¡ï¸ Security block: {error_msg}")
+                        print(f"[Executor] Security block: {error_msg}")
                         log_step_failure(task_id, step_num, tool, error_msg, attempt)
                         msg = f"Task aborted due to security policy, sir. {error_msg}"
                         if speak: speak(msg)
                         log_task_failed(task_id or "", goal, msg, replan_attempts)
+                        if task_id: clear_checkpoint(task_id)
                         return msg
 
                     except Exception as e:
@@ -424,6 +458,7 @@ class AgentExecutor:
                             msg = f"Task aborted, sir. {recovery.get('reason', '')}"
                             if speak: speak(msg)
                             log_task_failed(task_id or "", goal, msg, replan_attempts)
+                            if task_id: clear_checkpoint(task_id)
                             return msg
 
                         else:
@@ -446,6 +481,9 @@ class AgentExecutor:
                                     log_step_success(task_id, step_num,
                                                      fixed_step["tool"], fix_text[:200])
                                     step_ok = True
+                                    if task_id:
+                                        save_checkpoint(task_id, goal, plan, step_results,
+                                                         completed_steps, replan_attempts)
                                     break
                                 except Exception as fix_err:
                                     print(f"[Executor] Fix failed: {fix_err}")
@@ -466,6 +504,7 @@ class AgentExecutor:
             if success:
                 duration = _time.time() - _start
                 log_task_completed(task_id or "", goal, duration)
+                if task_id: clear_checkpoint(task_id)
                 return self._summarize(goal, completed_steps, speak)
 
             if replan_attempts >= self.MAX_REPLAN_ATTEMPTS:
@@ -473,6 +512,7 @@ class AgentExecutor:
                 if speak: speak(msg)
                 log_task_failed(task_id or "", goal,
                                 failed_error or "max replans", replan_attempts)
+                if task_id: clear_checkpoint(task_id)
                 return msg
 
             if speak: speak("Adjusting my approach, sir.")

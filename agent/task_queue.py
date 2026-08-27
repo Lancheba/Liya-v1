@@ -72,6 +72,7 @@ class Task:
     started_at:  float | None = field(compare=False, default=None)
     finished_at: float | None = field(compare=False, default=None)
     auto_approve: bool = field(compare=False, default=False)
+    resume:      bool = field(compare=False, default=False)
 
 
 # ---------------------------------------------------------------------------
@@ -174,8 +175,17 @@ class TaskQueue:
         speak:       Callable | None   = None,
         on_complete: Callable | None   = None,
         auto_approve: bool             = False,
+        resume:      bool              = False,
+        resume_task_id: str | None     = None,
     ) -> str:
-        task_id = str(uuid.uuid4())[:8]
+        """
+        resume=True + resume_task_id=<id of a previously interrupted task>
+        picks that task's checkpoint back up (agent/checkpoint_store.py)
+        instead of starting a fresh plan from step 1 — see
+        AgentExecutor.execute(resume=...). Uses the SAME task_id so the
+        checkpoint lookup finds it, rather than a new random one.
+        """
+        task_id = resume_task_id if (resume and resume_task_id) else str(uuid.uuid4())[:8]
         task    = Task(
             priority     = priority.value,
             created_at   = time.time(),
@@ -184,6 +194,7 @@ class TaskQueue:
             speak        = speak,
             on_complete  = on_complete,
             auto_approve = auto_approve,
+            resume       = resume,
         )
 
         with self._condition:
@@ -366,6 +377,7 @@ class TaskQueue:
                 cancel_flag  = task.cancel_flag,
                 task_id      = task.task_id,
                 auto_approve = task.auto_approve,
+                resume       = task.resume,
             )
 
             with self._lock:

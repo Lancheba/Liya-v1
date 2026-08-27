@@ -2,7 +2,10 @@ import json
 import re
 from enum import Enum
 
-from config.ai_client import generate, MODEL_FLASH, MODEL_FLASH_LITE
+from config.ai_client import (
+    generate, generate_with_fallback,
+    MODEL_FLASH, MODEL_FLASH_LITE, MODEL_GEMMA,
+)
 
 
 class ErrorDecision(Enum):
@@ -85,7 +88,14 @@ Error:
 Attempt number: {attempt}"""
 
     try:
-        response = generate(
+        # Error classification is a small, high-frequency, low-stakes call
+        # (retry/skip/replan/abort) — a good fit for Gemma instead of a
+        # hosted Gemini call. generate_with_fallback() transparently drops
+        # back to MODEL_FLASH_LITE if Gemma isn't reachable, so this is a
+        # pure cost/latency win with no new failure mode for error recovery
+        # itself to worry about.
+        response = generate_with_fallback(
+            MODEL_GEMMA,
             MODEL_FLASH_LITE,
             prompt,
             system_instruction=ERROR_ANALYST_PROMPT,

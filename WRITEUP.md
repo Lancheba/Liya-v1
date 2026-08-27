@@ -100,24 +100,67 @@ fall back to local-file storage / in-memory state if not. This keeps
 local desktop use (no GCP project needed) and Cloud Run deployment (full
 persistence) on the same codebase without a feature flag maze.
 
+## Recent additions: Gemma, step-level checkpoint/resume, memory_tool
+
+Three things were added after the initial submission pass, each closing
+a gap named in "what's deliberately not in this codebase" below (that
+section is left as-is, with strikethroughs, so the before/after is
+honest rather than rewritten history):
+
+- **Gemma integration** (`config/ai_client.py`, `agent/error_handler.py`)
+  — `error_handler.py`'s retry/skip/replan/abort classification call
+  (high-frequency, low-stakes) now runs on `MODEL_GEMMA`
+  (`gemma-3-27b-it`) via a new `generate_with_fallback()` helper, which
+  transparently drops back to `MODEL_FLASH_LITE` if Gemma isn't reachable
+  in a given project/region. Same fallback-chain philosophy as
+  `actions/web_search.py`'s Gemini → DuckDuckGo → Bing chain: a second
+  model is a pure cost/latency win here, never a new failure mode.
+
+- **Step-level checkpoint/resume** (`agent/checkpoint_store.py`, wired
+  into `agent/executor.py` and `agent/task_queue.py`) — after every
+  successfully completed step, `{plan, step_results, completed_steps,
+  replan_attempts}` is persisted (Firestore, or local JSON fallback —
+  same pattern as `memory/memory_manager.py`). `AgentExecutor.execute(...,
+  resume=True)` reads that checkpoint back and skips any step already in
+  `completed_steps` instead of re-running the whole plan, so a step whose
+  side effect already happened (a file written, a message sent, a flight
+  booked) is never repeated just because the process restarted mid-task.
+  The checkpoint is cleared on any terminal outcome (success, security
+  abort, explicit ABORT decision, exhausted replans) — it's resume state
+  for an in-flight task, not permanent history (that's still
+  `task_queue.py`'s Firestore `tasks` collection). Demoed end-to-end,
+  against a real cancelled-then-resumed task, in
+  `demo/demo_checkpoint_resume.py`.
+
+- **`memory_tool`** (`agent/adk_tools.py`) — the one new ADK tool that
+  isn't a re-wrap of an existing `actions/*.py` module. It exposes
+  `memory/memory_manager.py`'s `remember()`/`forget()` directly to the
+  ADK agent, so a fact learned mid-conversation ("I use VS Code, not
+  PyCharm") can be persisted immediately instead of only being available
+  to the *next* run's `_load_memory_context()` call. Not governed by
+  `agent/governance.py`'s allow/confirm/deny table, since it only ever
+  touches the agent's own memory store — there's no external system for
+  that policy to gate.
+
 ## What's deliberately not in this codebase
 
 A few production-agent concerns are real and worth naming even though
-they're out of scope here: a durable/distributed task queue instead of
-the in-process one, step-level checkpoint/resume, idempotency keys on
-every write action, a prompt-injection defense pipeline around
-untrusted tool output, and rate/cost limiting on model calls. None of
-these were built for this submission - the in-process queue backed by
-Firestore status writes, the existing tool governance table
-(`agent/governance.py`), and the `MAX_REPLAN_ATTEMPTS` cap in
-`agent/executor.py` are the scope-appropriate version of "safe to run
-autonomously" for a hackathon build, not the enterprise-hardened one.
+most are still out of scope here: a durable/distributed task queue
+instead of the in-process one, ~~step-level checkpoint/resume~~ (added
+above), idempotency keys on every write action, a prompt-injection
+defense pipeline around untrusted tool output, and rate/cost limiting on
+model calls. The remaining ones weren't built for this submission - the
+in-process queue backed by Firestore status writes, the existing tool
+governance table (`agent/governance.py`), and the `MAX_REPLAN_ATTEMPTS`
+cap in `agent/executor.py` are the scope-appropriate version of "safe to
+run autonomously" for a hackathon build, not the enterprise-hardened one.
 
 ## What's next
 
-The designated end-to-end demo scenario and the trace/observability
-walkthrough for judges are documented separately — see the project
-tracker for that work.
+Idempotency keys on write actions and a distributed task queue are the
+next two items on that list, in that order. The designated end-to-end
+demo scenario and the trace/observability walkthrough for judges are
+documented separately — see the project tracker for that work.
 
 ## Repo hygiene notes
 

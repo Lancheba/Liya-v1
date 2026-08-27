@@ -26,7 +26,14 @@ to completion without further input:
   allow/confirm/deny policy table, so autonomy is safe by structure,
   not by prompt engineering (`agent/governance.py`)
 - **Remembers** long-term preferences across sessions and feeds them
-  back into future planning (`memory/memory_manager.py`)
+  back into future planning (`memory/memory_manager.py`) — reachable
+  from either execution path, since the ADK agent can now call
+  `memory_tool` directly to persist a fact mid-conversation, not just
+  read memory in at plan time
+- **Resumes instead of restarting** if a task is interrupted mid-run
+  (e.g. a Cloud Run instance restart): step-level checkpoints mean
+  already-completed steps — and their side effects — aren't repeated
+  (`agent/checkpoint_store.py`)
 - Runs identically as a **local desktop app** (voice, via Gemini Live)
   or as a **Cloud Run backend** that any client can call over HTTP
 
@@ -36,7 +43,7 @@ Two execution paths share the same underlying tool implementations:
 
 1. A direct Gemini-driven planner/executor loop that produces a JSON
    step plan and runs it with retry/replan logic.
-2. A **Google ADK agent** (`agent/adk_agent.py`) wrapping 8 of the
+2. A **Google ADK agent** (`agent/adk_agent.py`) wrapping 9 of the
    same action modules as ADK `FunctionTool`s, run through ADK's own
    agent loop and session management (`agent/adk_runner.py`).
 
@@ -48,7 +55,8 @@ change is a single edit, not a repo-wide hunt. The backend
 memory, with a local-file fallback so the same code runs with zero GCP
 setup during development.
 
-**Technologies used:** Gemini 3.5 Flash / Flash-Lite (via the
+**Technologies used:** Gemini 3.5 Flash / Flash-Lite and Gemma
+(`gemma-3-27b-it`, for high-frequency error classification, via the same
 `google-genai` SDK), Google ADK, Google Cloud Run, Google Cloud
 Firestore, Google Cloud Build, FastAPI, PyQt6 (desktop UI), Playwright
 (browser control).
@@ -120,8 +128,11 @@ search-grounding, with DuckDuckGo and Bing as fallback backends).
 
 ## What's next for Liya
 
-Extending ADK coverage to the remaining 8 action modules (browser
+Extending ADK coverage to the remaining 7 action modules (browser
 control, computer control, desktop control, screen analysis) that
 currently only run on the legacy path; a durable/distributed task
-queue in place of the in-process one; step-level checkpoint/resume;
-and a prompt-injection defense layer around untrusted tool output.
+queue in place of the in-process one; idempotency keys on every write
+action; and a prompt-injection defense layer around untrusted tool
+output. (Gemma integration and step-level checkpoint/resume, both
+previously on this list, have since been built — see "How we built
+it" above and `agent/checkpoint_store.py`.)
