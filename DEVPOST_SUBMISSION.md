@@ -43,7 +43,7 @@ Two execution paths share the same underlying tool implementations:
 
 1. A direct Gemini-driven planner/executor loop that produces a JSON
    step plan and runs it with retry/replan logic.
-2. A **Google ADK agent** (`agent/adk_agent.py`) wrapping 9 of the
+2. A **Google ADK agent** (`agent/adk_agent.py`) wrapping 11 of the
    same action modules as ADK `FunctionTool`s, run through ADK's own
    agent loop and session management (`agent/adk_runner.py`).
 
@@ -84,12 +84,20 @@ search-grounding, with DuckDuckGo and Bing as fallback backends).
   Both are valid Cloud Run URL formats for the same service — see the
   reconciliation note at the top of the deployment log.*
 
-- Written up in more depth for the hackathon's bonus content
-  category:
-  [dev.to/lanchenba/we-found-a-real-security-hole-in-our-own-agent-by-running-it-two-ways-36ok](https://dev.to/lanchenba/we-found-a-real-security-hole-in-our-own-agent-by-running-it-two-ways-36ok)
+- **[OPTIONAL — only include once actually published]** Written up in
+  more depth for the hackathon's bonus content category — draft ready
+  at `evidence/blog_post_draft.md`; publish it publicly (not unlisted)
+  on a platform like dev.to or medium.com, with the required
+  "written for this hackathon" attribution line already included in
+  the draft, then paste the real published URL here.
+- **[OPTIONAL — only include once actually published]** Shared
+  publicly on LinkedIn/X with #AllThingsAgenticHackathon — draft ready
+  at `evidence/social_post_draft.md`; post it, then paste the real
+  post URL here.
 
-- Shared publicly on LinkedIn with #AllThingsAgenticHackathon:
-  [linkedin.com/feed/update/urn:li:activity:7498305380020674560](https://www.linkedin.com/feed/update/urn:li:activity:7498305380020674560/)
+  *Do not submit this section with placeholder or unverified links —
+  a bonus-content link that doesn't resolve to a real, public post is
+  worse than leaving the bonus unclaimed.*
 
 ## Challenges we ran into
 
@@ -128,11 +136,14 @@ search-grounding, with DuckDuckGo and Bing as fallback backends).
 
 ## What's next for Liya
 
-Extending ADK coverage to the remaining 7 action modules (browser
+Extending ADK coverage to the remaining 5 action modules (browser
 control, computer control, desktop control, screen analysis) that
-currently only run on the legacy path; a durable/distributed task
-queue in place of the in-process one; idempotency keys on every write
-action; and a prompt-injection defense layer around untrusted tool
-output. (Gemma integration and step-level checkpoint/resume, both
-previously on this list, have since been built — see "How we built
-it" above and `agent/checkpoint_store.py`.)
+currently only run on the legacy path, plus a headless-safe split of
+`youtube_video` so its summarize/get_info/trending sub-actions can join
+the ADK path too; a durable/distributed task queue in place of the
+in-process one; idempotency keys on every write action; and a
+prompt-injection defense layer around untrusted tool output. (Gemma
+integration, step-level checkpoint/resume, and ADK coverage for
+`code_helper`/`dev_agent`, all previously on this list, have since been
+built — see "How we built it" above, `agent/checkpoint_store.py`, and
+`agent/adk_tools.py`.)

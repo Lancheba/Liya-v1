@@ -31,12 +31,22 @@ gcloud firestore databases create --location=us-central1
 echo -n "YOUR_LIYA_API_KEY"   | gcloud secrets create liya-api-key    --data-file=-
 echo -n "YOUR_GEMINI_API_KEY" | gcloud secrets create gemini-api-key  --data-file=-
 
+# Optional: a separate, revocable key to hand out to hackathon judges
+# instead of your real liya-api-key — see JUDGE_TESTING.md.
+echo -n "YOUR_JUDGE_KEY"      | gcloud secrets create liya-judge-key  --data-file=-
+
 # 5. Grant Cloud Build access to secrets
 PROJECT_NUMBER=$(gcloud projects describe YOUR_PROJECT_ID --format="value(projectNumber)")
 gcloud secrets add-iam-policy-binding liya-api-key \
   --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor"
 gcloud secrets add-iam-policy-binding gemini-api-key \
+  --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+# If you created liya-judge-key above, grant it access too, and add
+# LIYA_JUDGE_KEY=liya-judge-key:latest to cloudbuild.yaml's --set-secrets line.
+gcloud secrets add-iam-policy-binding liya-judge-key \
   --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor"
 ```

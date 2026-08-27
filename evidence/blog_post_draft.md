@@ -65,4 +65,4 @@ Worth remembering before adding a third.
 
 ---
 *Built for the All Things Agentic Hackathon — read more or try it at
-[your repo link].*
+https://github.com/Lancheba/Liya-v1.*

@@ -62,7 +62,7 @@ def _local_load_all() -> dict:
             data = json.loads(_LOCAL_PATH.read_text(encoding="utf-8"))
             return data if isinstance(data, dict) else {}
         except Exception as exc:
-            print(f"[Checkpoint] ⚠️ Local load error: {exc}")
+            print(f"[Checkpoint] Local load error: {exc}")
             return {}
 
 
@@ -75,7 +75,7 @@ def _local_save_all(data: dict) -> None:
                 encoding="utf-8",
             )
         except Exception as exc:
-            print(f"[Checkpoint] ⚠️ Local save error: {exc}")
+            print(f"[Checkpoint] Local save error: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ def _firestore_save(task_id: str, checkpoint: dict) -> bool:
         db.collection("checkpoints").document(task_id).set(doc)
         return True
     except Exception as exc:
-        print(f"[Checkpoint] ⚠️ Firestore save error for [{task_id}]: {exc}")
+        print(f"[Checkpoint] Firestore save error for [{task_id}]: {exc}")
         return False
 
 
@@ -106,7 +106,7 @@ def _firestore_load(task_id: str) -> dict | None:
         doc = db.collection("checkpoints").document(task_id).get()
         return doc.to_dict() if doc.exists else None
     except Exception as exc:
-        print(f"[Checkpoint] ⚠️ Firestore load error for [{task_id}]: {exc}")
+        print(f"[Checkpoint] Firestore load error for [{task_id}]: {exc}")
         return None
 
 
@@ -119,7 +119,7 @@ def _firestore_delete(task_id: str) -> bool:
         db.collection("checkpoints").document(task_id).delete()
         return True
     except Exception as exc:
-        print(f"[Checkpoint] ⚠️ Firestore delete error for [{task_id}]: {exc}")
+        print(f"[Checkpoint] Firestore delete error for [{task_id}]: {exc}")
         return False
 
 
@@ -153,7 +153,7 @@ def save_checkpoint(
         data[task_id] = checkpoint
         _local_save_all(data)
     except Exception as exc:
-        print(f"[Checkpoint] ⚠️ save_checkpoint failed for [{task_id}]: {exc}")
+        print(f"[Checkpoint] save_checkpoint failed for [{task_id}]: {exc}")
 
 
 def load_checkpoint(task_id: str) -> dict | None:

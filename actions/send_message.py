@@ -112,7 +112,7 @@ def _open_app(app_name: str) -> bool:
             return launched
 
     except Exception as e:
-        print(f"[SendMessage] ⚠️ Could not open {app_name}: {e}")
+        print(f"[SendMessage] Could not open {app_name}: {e}")
         return False
 
 
@@ -123,7 +123,7 @@ def _open_browser_url(url: str) -> bool:
         time.sleep(4.0) 
         return True
     except Exception as e:
-        print(f"[SendMessage] ⚠️ Could not open browser: {e}")
+        print(f"[SendMessage] Could not open browser: {e}")
         return False
 
 def _search_in_app(query: str) -> None:
@@ -254,9 +254,9 @@ def send_message(
         return fail("PyAutoGUI is not installed — cannot control the desktop.")
 
     preview = message_text[:50] + ("…" if len(message_text) > 50 else "")
-    print(f"[SendMessage] 📨 {platform} → {receiver}: {preview}")
+    print(f"[SendMessage] {platform} {receiver}: {preview}")
     if player:
-        player.write_log(f"[msg] {platform} → {receiver}")
+        player.write_log(f"[msg] {platform} {receiver}")
 
     try:
         handler = _resolve_platform(platform)
@@ -267,7 +267,7 @@ def send_message(
     # The handler's own success message is a fixed, known format ("Message
     # sent to X via Y."), so this is an exact-prefix check, not a guess.
     succeeded = result.startswith(_SUCCESS_PREFIX)
-    print(f"[SendMessage] {'✅' if succeeded else '❌'} {result}")
+    print(f"[SendMessage] {'' if succeeded else ''} {result}")
     if player:
         player.write_log(f"[msg] {result}")
 

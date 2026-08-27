@@ -11,7 +11,7 @@ Usage:
 Auth priority:
     1. GOOGLE_APPLICATION_CREDENTIALS env-var (path to service account JSON)
     2. Application Default Credentials (gcloud auth application-default login)
-    3. If project ID is missing or Firestore init fails → returns None (graceful fallback)
+    3. If project ID is missing or Firestore init fails returns None (graceful fallback)
 
 Project ID is read from config/api_keys.json["firestore_project_id"].
 If absent, Firestore is disabled and Liya falls back to local-file storage.

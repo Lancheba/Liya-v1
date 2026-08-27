@@ -8,7 +8,7 @@ trends, save a summary, remind me tomorrow" and it plans it, runs it
 against real tools, recovers from real failures live, and reports
 back. Built on Gemini 3.5 + Google ADK, deployed on Cloud Run.
 
-[repo link] [video link]
+https://github.com/Lancheba/Liya-v1 — [PASTE DEMO VIDEO LINK HERE ONCE RECORDED]
 
 ## Longer version (LinkedIn)
 
@@ -31,6 +31,6 @@ Deployed on Cloud Run, backed by Firestore, with a full failure-
 recovery and tool-governance layer built in from the start rather than
 bolted on after.
 
-Repo: [link] | Demo: [link]
+Repo: https://github.com/Lancheba/Liya-v1 | Demo: [PASTE DEMO VIDEO LINK HERE ONCE RECORDED]
 
 #AllThingsAgenticHackathon #GoogleCloud #Gemini #AIAgents

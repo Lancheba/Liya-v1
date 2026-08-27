@@ -23,7 +23,7 @@ def _get_os() -> str:
 
 
 def _scripts_dir() -> Path:
-    d = Path.home() / ".jarvis" / "reminders"
+    d = Path.home() / ".liya" / "reminders"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -188,7 +188,7 @@ def _schedule_windows(target_dt: datetime, task_name: str,
     if result.returncode != 0:
         script_path.unlink(missing_ok=True)
         err = (result.stderr or result.stdout).strip()
-        print(f"[Reminder] ❌ schtasks: {err}")
+        print(f"[Reminder] schtasks: {err}")
         return ""  
 
     return task_name
@@ -199,7 +199,7 @@ def _schedule_mac(target_dt: datetime, task_name: str,
     agents_dir = Path.home() / "Library" / "LaunchAgents"
     agents_dir.mkdir(parents=True, exist_ok=True)
 
-    label     = f"com.jarvis.reminder.{task_name}"
+    label     = f"com.liya.reminder.{task_name}"
     plist_path = agents_dir / f"{label}.plist"
 
     plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -238,7 +238,7 @@ def _schedule_mac(target_dt: datetime, task_name: str,
     if result.returncode != 0:
         plist_path.unlink(missing_ok=True)
         script_path.unlink(missing_ok=True)
-        print(f"[Reminder] ❌ launchctl: {result.stderr.strip()}")
+        print(f"[Reminder] launchctl: {result.stderr.strip()}")
         return ""
 
     return label
@@ -262,7 +262,7 @@ def _schedule_linux(target_dt: datetime, task_name: str,
         )
         if result.returncode == 0:
             return task_name
-        print(f"[Reminder] ⚠️ systemd-run failed: {result.stderr.strip()}, trying 'at'")
+        print(f"[Reminder] systemd-run failed: {result.stderr.strip()}, trying 'at'")
 
     if shutil.which("at"):
         at_time = target_dt.strftime("%H:%M %Y-%m-%d")
@@ -273,10 +273,10 @@ def _schedule_linux(target_dt: datetime, task_name: str,
         )
         if result.returncode == 0:
             return task_name
-        print(f"[Reminder] ❌ at: {result.stderr.strip()}")
+        print(f"[Reminder] at: {result.stderr.strip()}")
         return ""
 
-    print("[Reminder] ❌ Neither systemd-run nor at found on this Linux system.")
+    print("[Reminder] Neither systemd-run nor at found on this Linux system.")
     return ""
 
 def reminder(
@@ -313,7 +313,7 @@ def reminder(
 
     os_name    = _get_os()
     safe_msg   = _sanitise(message)
-    task_name  = f"JARVISReminder_{target_dt.strftime('%Y%m%d_%H%M%S')}"
+    task_name  = f"LiyaReminder_{target_dt.strftime('%Y%m%d_%H%M%S')}"
 
     try:
         script_path = _write_notify_script(task_name, safe_msg, os_name)
@@ -329,14 +329,14 @@ def reminder(
             job_id = _schedule_linux(target_dt, task_name, script_path)
     except Exception as e:
         script_path.unlink(missing_ok=True)
-        print(f"[Reminder] ❌ Scheduling exception: {e}")
+        print(f"[Reminder] Scheduling exception: {e}")
         raise RuntimeError(f"Scheduling failed: {e}") from e
 
     if not job_id:
         raise RuntimeError("Could not register the reminder with the system scheduler.")
 
     if player:
-        player.write_log(f"[Reminder] ✅ {date_str} {time_str} — {safe_msg[:40]}")
+        player.write_log(f"[Reminder] {date_str} {time_str} — {safe_msg[:40]}")
 
     friendly_time = target_dt.strftime("%B %d at %I:%M %p")
     return f"Reminder set for {friendly_time}."

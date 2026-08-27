@@ -25,7 +25,6 @@ from actions.flight_finder     import flight_finder
 from actions.open_app          import open_app
 from actions.weather_report    import weather_action
 from actions.send_message      import send_message
-from actions.game_updater      import game_updater
 from actions.reminder          import reminder
 from actions.computer_settings import computer_settings
 from actions.screen_processor  import screen_process
@@ -313,7 +312,7 @@ TOOL_DECLARATIONS = [
         "description": (
             "Executes complex multi-step tasks requiring multiple different tools. "
             "Examples: 'research X and save to file', 'find and organize files'. "
-            "DO NOT use for single commands. NEVER use for Steam/Epic — use game_updater."
+            "DO NOT use for single commands."
         ),
         "parameters": {
             "type": "OBJECT",
@@ -347,29 +346,6 @@ TOOL_DECLARATIONS = [
                 "path":        {"type": "STRING",  "description": "Save path for screenshot"},
             },
             "required": ["action"]
-        }
-    },
-    {
-        "name": "game_updater",
-        "description": (
-            "THE ONLY tool for ANY Steam or Epic Games request. "
-            "Use for: installing, downloading, updating games, listing installed games, "
-            "checking download status, scheduling updates. "
-            "ALWAYS call directly for any Steam/Epic/game request. "
-            "NEVER use agent_task, browser_control, or web_search for Steam/Epic."
-        ),
-        "parameters": {
-            "type": "OBJECT",
-            "properties": {
-                "action":    {"type": "STRING",  "description": "update | install | list | download_status | schedule | cancel_schedule | schedule_status (default: update)"},
-                "platform":  {"type": "STRING",  "description": "steam | epic | both (default: both)"},
-                "game_name": {"type": "STRING",  "description": "Game name (partial match supported)"},
-                "app_id":    {"type": "STRING",  "description": "Steam AppID for install (optional)"},
-                "hour":      {"type": "INTEGER", "description": "Hour for scheduled update 0-23 (default: 3)"},
-                "minute":    {"type": "INTEGER", "description": "Minute for scheduled update 0-59 (default: 0)"},
-                "shutdown_when_done": {"type": "BOOLEAN", "description": "Shut down PC when download finishes"},
-            },
-            "required": []
         }
     },
     {
@@ -607,7 +583,7 @@ class LiyaLive:
         name = fc.name
         args = dict(fc.args or {})
 
-        print(f"[LIYA] 🌸 {name}  {args}")
+        print(f"[LIYA] {name} {args}")
         self.ui.set_state("THINKING")
 
         if name == "save_memory":
@@ -616,7 +592,7 @@ class LiyaLive:
             value    = args.get("value", "")
             if key and value:
                 update_memory({category: {key: {"value": value}}})
-                print(f"[Memory] 💾 save_memory: {category}/{key} = {value}")
+                print(f"[Memory] save_memory: {category}/{key} = {value}")
             if not self.ui.muted:
                 self.ui.set_state("LISTENING")
             return types.FunctionResponse(
@@ -709,10 +685,6 @@ class LiyaLive:
                 r = await loop.run_in_executor(None, lambda: flight_finder(parameters=args, player=self.ui))
                 result = _tool_text(r) or "Done."
 
-            elif name == "game_updater":
-                r = await loop.run_in_executor(None, lambda: game_updater(parameters=args, player=self.ui, speak=self.speak))
-                result = _tool_text(r) or "Done."
-
             elif name == "shutdown_liya":
                 self.ui.write_log("SYS: Shutdown requested.")
                 self.speak("Goodbye! Take care ♡")
@@ -746,7 +718,7 @@ class LiyaLive:
         if not self.ui.muted:
             self.ui.set_state("LISTENING")
 
-        print(f"[LIYA] 📤 {name} → {str(result)[:80]}")
+        print(f"[LIYA] {name} {str(result)[:80]}")
         return types.FunctionResponse(
             id=fc.id, name=name,
             response={"result": result}
@@ -760,7 +732,7 @@ class LiyaLive:
             )
 
     async def _listen_audio(self):
-        print("[LIYA] 🎤 Mic started")
+        print("[LIYA] Mic started")
         loop = asyncio.get_event_loop()
 
         def callback(indata, frames, time_info, status):
@@ -781,15 +753,15 @@ class LiyaLive:
                 blocksize=CHUNK_SIZE,
                 callback=callback,
             ):
-                print("[LIYA] 🎤 Mic stream open")
+                print("[LIYA] Mic stream open")
                 while True:
                     await asyncio.sleep(0.1)
         except Exception as e:
-            print(f"[LIYA] ❌ Mic: {e}")
+            print(f"[LIYA] Mic: {e}")
             raise
 
     async def _receive_audio(self):
-        print("[LIYA] 👂 Recv started")
+        print("[LIYA] Recv started")
         out_buf, in_buf = [], []
 
         try:
@@ -831,19 +803,19 @@ class LiyaLive:
                     if response.tool_call:
                         fn_responses = []
                         for fc in response.tool_call.function_calls:
-                            print(f"[LIYA] 📞 {fc.name}")
+                            print(f"[LIYA] {fc.name}")
                             fr = await self._execute_tool(fc)
                             fn_responses.append(fr)
                         await self.session.send_tool_response(
                             function_responses=fn_responses
                         )
         except Exception as e:
-            print(f"[LIYA] ❌ Recv: {e}")
+            print(f"[LIYA] Recv: {e}")
             traceback.print_exc()
             raise
 
     async def _play_audio(self):
-        print("[LIYA] 🔊 Play started")
+        print("[LIYA] Play started")
 
         stream = sd.RawOutputStream(
             samplerate=RECEIVE_SAMPLE_RATE,
@@ -872,7 +844,7 @@ class LiyaLive:
                 self.set_speaking(True)
                 await asyncio.to_thread(stream.write, chunk)
         except Exception as e:
-            print(f"[LIYA] ❌ Play: {e}")
+            print(f"[LIYA] Play: {e}")
             raise
         finally:
             self.set_speaking(False)
@@ -887,7 +859,7 @@ class LiyaLive:
 
         while True:
             try:
-                print("[LIYA] 🔌 Connecting...")
+                print("[LIYA] Connecting...")
                 self.ui.set_state("THINKING")
                 config = self._build_config()
 
@@ -901,7 +873,7 @@ class LiyaLive:
                     self.out_queue      = asyncio.Queue(maxsize=10)
                     self._turn_done_event = asyncio.Event()
 
-                    print("[LIYA] ✅ Connected.")
+                    print("[LIYA] Connected.")
                     self.ui.set_state("LISTENING")
                     self.ui.write_log("SYS: LIYA online. ♡ Ready.")
 
@@ -915,11 +887,11 @@ class LiyaLive:
                     tg.create_task(self._play_audio())
 
             except Exception as e:
-                print(f"[LIYA] ⚠️ {e}")
+                print(f"[LIYA] {e}")
                 traceback.print_exc()
             self.set_speaking(False)
             self.ui.set_state("THINKING")
-            print("[LIYA] 🔄 Reconnecting in 3s...")
+            print("[LIYA] Reconnecting in 3s...")
             await asyncio.sleep(3)
 
 
@@ -932,7 +904,7 @@ def main():
         try:
             asyncio.run(liya.run())
         except KeyboardInterrupt:
-            print("\n🌸 LIYA shutting down...")
+            print("\n LIYA shutting down...")
 
     threading.Thread(target=runner, daemon=True).start()
     ui.root.mainloop()

@@ -5,9 +5,9 @@ Enforces rules regarding which tools the agent is permitted to run,
 helping to satisfy the "Security/governance" and "Tool/action governance" gaps.
 
 Policy actions:
-    - "allow"   → run tool immediately
-    - "confirm" → require confirmation (passes in local UI, fails in headless/cloud unless pre-approved)
-    - "deny"    → block execution and raise a SecurityException
+    - "allow" run tool immediately
+    - "confirm" require confirmation (passes in local UI, fails in headless/cloud unless pre-approved)
+    - "deny" block execution and raise a SecurityException
 
 The policy is loaded from config/api_keys.json under "tool_governance".
 """

@@ -2,14 +2,19 @@
 demo/run_demo.py — Liya's designated end-to-end demo scenario.
 
 Goal:
-    "Search the web for the latest trends in electric vehicles, save a
-    short summary to a file called ev_trends.txt on the Desktop, and set
-    a reminder for tomorrow at 9:00 AM to review it."
+    "Search the web for what judges say separates a winning hackathon
+    submission from an average one, save the findings as a
+    submission-readiness checklist to a file called
+    hackathon_checklist.txt on the Desktop, and set a reminder for
+    tonight at 8:00 PM to do a final pass against it."
 
-Why this goal: it chains three different tools (web_search →
-file_controller → reminder) in one autonomous run, forcing the planner
-to sequence dependent steps and the executor to carry them out
-end-to-end without further input — the core claim of the whole project.
+Why this goal: it's a real, personal chore (the BYOF — Bring Your Own
+Friction — problem this project's own team had while finishing this
+submission), not a stock example topic, and it still chains three
+different tools (web_search → file_controller → reminder) in one
+autonomous run, forcing the planner to sequence dependent steps and the
+executor to carry them out end-to-end without further input — the core
+claim of the whole project.
 
 What this script does, concretely:
     1. Submits the goal to the real TaskQueue (agent/task_queue.py) —
@@ -35,9 +40,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 DEMO_GOAL = (
-    "Search the web for the latest trends in electric vehicles, save a "
-    "short summary to a file called ev_trends.txt on the Desktop, and "
-    "set a reminder for tomorrow at 9:00 AM to review it."
+    "Search the web for what judges say separates a winning hackathon "
+    "submission from an average one, save the findings as a "
+    "submission-readiness checklist to a file called "
+    "hackathon_checklist.txt on the Desktop, and set a reminder for "
+    "tonight at 8:00 PM to do a final pass against it."
 )
 
 _EVENT_ICONS = {

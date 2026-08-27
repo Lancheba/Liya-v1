@@ -140,6 +140,6 @@ def generate_with_fallback(
     try:
         return generate(primary_model, contents, system_instruction, **config_kwargs)
     except Exception as primary_exc:
-        print(f"[ai_client] ⚠️ {primary_model} failed ({primary_exc}); "
+        print(f"[ai_client] {primary_model} failed ({primary_exc}); "
               f"falling back to {fallback_model}")
         return generate(fallback_model, contents, system_instruction, **config_kwargs)

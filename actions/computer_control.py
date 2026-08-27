@@ -50,7 +50,7 @@ _SAFE_SCREENSHOT_ROOTS = (
 )
 
 def _safe_screenshot_path(requested: str | None) -> Path:
-    fallback = Path.home() / "Desktop" / "jarvis_screenshot.png"
+    fallback = Path.home() / "Desktop" / "liya_screenshot.png"
     if not requested:
         return fallback
     try:
@@ -197,14 +197,14 @@ def _scroll(direction: str = "down", amount: int = 3) -> str:
 def _move(x: int, y: int, duration: float = 0.3) -> str:
     _require_pyautogui()
     pyautogui.moveTo(x, y, duration=duration)
-    return f"Mouse → ({x}, {y})"
+    return f"Mouse ({x}, {y})"
 
 
 def _drag(x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> str:
     _require_pyautogui()
     pyautogui.moveTo(x1, y1, duration=0.2)
     pyautogui.dragTo(x2, y2, duration=duration, button="left")
-    return f"Dragged ({x1},{y1}) → ({x2},{y2})"
+    return f"Dragged ({x1},{y1}) ({x2},{y2})"
 
 
 def _clipboard_get() -> str:
@@ -333,7 +333,7 @@ def _screen_find(description: str) -> tuple[int, int] | None:
             return int(match.group(1)), int(match.group(2))
 
     except Exception as e:
-        print(f"[ComputerControl] ⚠️ screen_find failed: {e}")
+        print(f"[ComputerControl] screen_find failed: {e}")
 
     return None
 
@@ -507,7 +507,7 @@ def _computer_control_impl(
         if action == "random_data":
             dt     = params.get("type", "name")
             result = _random_data(dt)
-            print(f"[ComputerControl] 🎲 random {dt} → {result}")
+            print(f"[ComputerControl] random {dt} {result}")
             return result
 
         if action == "user_data":
@@ -516,11 +516,11 @@ def _computer_control_impl(
             value   = profile.get(field, "")
             if not value:
                 value = _random_data(field)
-                print(f"[ComputerControl] ⚠️ No '{field}' in memory, using random: {value}")
+                print(f"[ComputerControl] No '{field}' in memory, using random: {value}")
             return value
 
         return f"Unknown action: '{action}'"
 
     except Exception as e:
-        print(f"[ComputerControl] ❌ {action}: {e}")
+        print(f"[ComputerControl] {action}: {e}")
         return f"computer_control '{action}' failed: {e}"

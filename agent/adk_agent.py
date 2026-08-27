@@ -19,6 +19,8 @@ Use file_controller_tool to read, write, or manage files.
 Use open_app_tool to launch desktop applications.
 Use reminder_tool to schedule reminders.
 Use weather_report_tool for weather questions.
+Use code_helper_tool to write, edit, explain, run, or optimize code.
+Use dev_agent_tool to build a small multi-file coding project end-to-end.
 Call tools directly rather than describing what you would do.
 Be concise in your final response to the user.
 """

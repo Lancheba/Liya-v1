@@ -411,7 +411,7 @@ Optimized code:"""
 
     return (
         f"Code optimized. {status}\n"
-        f"Lines: {original_lines} → {optimized_lines} "
+        f"Lines: {original_lines} {optimized_lines} "
         f"({'−' if diff > 0 else '+'}{abs(diff)} lines)\n\n"
         f"Preview:\n{_preview(optimized)}"
     )

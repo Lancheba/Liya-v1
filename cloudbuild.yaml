@@ -15,6 +15,14 @@
 #   liya-api-key      — the X-Liya-Key token clients must send
 #   gemini-api-key    — your Gemini API key
 #   firestore-project — your GCP project ID (usually == $PROJECT_ID)
+#
+# Optional Secret Manager secret:
+#   liya-judge-key    — a second, separately-revocable X-Liya-Key value
+#                       to hand out to hackathon judges (see
+#                       JUDGE_TESTING.md and backend/server.py's
+#                       LIYA_JUDGE_KEY). If you create this secret, add
+#                       LIYA_JUDGE_KEY=liya-judge-key:latest to the
+#                       --set-secrets line in the deploy step below.
 # ─────────────────────────────────────────────────────────────────────────────
 
 substitutions:

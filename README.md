@@ -52,6 +52,10 @@ See
 [`evidence/cloud_run_deployment_proof.log`](evidence/cloud_run_deployment_proof.log)
 for what a full run looks like, including live failure recovery.
 
+**Hackathon judges:** you don't need to run anything locally — see
+[`JUDGE_TESTING.md`](JUDGE_TESTING.md) for curl commands against the
+live Cloud Run deployment.
+
 Full setup detail, backend/Cloud Run instructions, and tool governance
 are documented below.
 
@@ -119,7 +123,7 @@ Two execution paths exist side by side:
 | `agent/governance.py` | Per-tool policy: `allow` / `confirm` / `deny` (see below) |
 | `agent/task_queue.py` | Background task queue backing `POST /task` |
 | `agent/adk_model.py` | `LiyaGemini` — ADK model wired to Liya's shared Gemini client |
-| `agent/adk_tools.py` | ADK `FunctionTool` wrappers around 8 of the actions below plus `memory_tool` (remember/forget), each gated through `agent/governance.py` (see below) |
+| `agent/adk_tools.py` | ADK `FunctionTool` wrappers around 10 of the actions below plus `memory_tool` (remember/forget), each gated through `agent/governance.py` (see below) |
 | `agent/checkpoint_store.py` | Step-level checkpoint/resume: persists completed steps per task (Firestore or local-file fallback) so an interrupted task resumes instead of restarting from step 1 |
 | `agent/adk_agent.py` | Builds the real ADK `Agent` |
 | `agent/adk_runner.py` | Runs a goal through the ADK agent + session |

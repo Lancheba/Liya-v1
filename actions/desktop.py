@@ -87,7 +87,7 @@ def _execute_generated_code(code: str, player=None) -> str:
     sandbox["__builtins__"]["print"] = lambda *a: output_lines.append(" ".join(str(x) for x in a))
 
     try:
-        exec(compile(code, "<jarvis_desktop>", "exec"), sandbox)
+        exec(compile(code, "<liya_desktop>", "exec"), sandbox)
         return "\n".join(output_lines) if output_lines else "Done."
     except Exception as e:
         print(f"[Desktop] Exec error: {e}\nCode:\n{code[:300]}")
@@ -327,7 +327,7 @@ def organize_desktop(mode: str = "by_type") -> str:
             continue
 
         shutil.move(str(item), str(new_path))
-        moved.append(f"{item.name} → {folder_name}/")
+        moved.append(f"{item.name} {folder_name}/")
 
     result = f"Desktop organized ({mode}): {len(moved)} files moved."
     if moved:
@@ -350,14 +350,14 @@ def list_desktop() -> str:
                 count = len(list(item.iterdir()))
             except PermissionError:
                 count = "?"
-            items.append(f"📁 {item.name}/ ({count} items)")
+            items.append(f" {item.name}/ ({count} items)")
         else:
             size     = item.stat().st_size
             size_str = (
                 f"{size / 1024:.1f} KB" if size < 1024 * 1024
                 else f"{size / 1024 / 1024:.1f} MB"
             )
-            items.append(f"📄 {item.name} ({size_str})")
+            items.append(f" {item.name} ({size_str})")
 
     if not items:
         return "Desktop is empty."

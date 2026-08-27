@@ -6,6 +6,19 @@ tools (files, apps, browser, reminders, web search, messaging), recovers
 from failures by replanning, and reports back with an auditable trace of
 what it actually did — with no hand-holding after the goal is handed to it.
 
+## Built during the Submission Period
+
+Liya was built from scratch for All Things Agentic Hackathon, within
+the Submission Period (August 3–31, 2026). Development moved in passes
+rather than one commit — the planner/executor loop and the core action
+modules first, then the Google ADK integration, governance parity fix,
+Cloud Run deployment, and Firestore-backed persistence, then Gemma
+integration and step-level checkpoint/resume (see "Recent additions"
+below for that last pass in detail). Standard tools, frameworks, and
+AI coding assistance were used throughout, consistent with the
+Official Rules; no code or prior work from outside this window was
+incorporated.
+
 ## Problem statement
 
 Most "AI assistant" demos are a chat window bolted onto a single LLM
@@ -39,11 +52,11 @@ gated per-call by prompt engineering, it's gated structurally.
 
 **Two execution engines, on purpose.** Liya ships both:
 
-1. The original planner/executor path — a direct Gemini call producing
-   a JSON step plan against a hand-maintained tool schema
-   (`agent/planner.py`'s `PLANNER_PROMPT`). This is fast, cheap
-   (`gemini-3.5-flash-lite` for planning), and was the whole system
-   before this integration.
+1. The planner/executor path — a direct Gemini call producing a JSON
+   step plan against a hand-maintained tool schema (`agent/planner.py`'s
+   `PLANNER_PROMPT`). Fast and cheap (`gemini-3.5-flash-lite` for
+   planning). This was the first piece built for this submission,
+   before the ADK integration below was layered on top of it.
 2. A Google ADK agent (`agent/adk_agent.py`) wrapping the *same* action
    modules as ADK `FunctionTool`s (`agent/adk_tools.py`), run through
    ADK's own agent loop and session management
@@ -59,18 +72,25 @@ gated per-call by prompt engineering, it's gated structurally.
    `POST /task/adk`) lets the ADK path be exercised, tested, and trusted
    incrementally rather than as a single risky cutover.
 
-   **Scope of the ADK path today:** 8 of the repo's 16 actions are
+   **Scope of the ADK path today:** 10 of the repo's 16 actions are
    wrapped as `FunctionTool`s in `agent/adk_tools.py` — `web_search`,
    `file_controller`, `open_app`, `reminder`, `weather_report`,
-   `flight_finder`, `file_processor`, and `send_message`. The remaining
-   8 (`browser_control`, `computer_settings`, `computer_control`,
-   `desktop_control`, `screen_processor`, `youtube_video`, `code_helper`,
-   `dev_agent`) follow the identical wrapper pattern and are the natural
-   next additions; they were left out of this pass because they pull in
-   Playwright/pyautogui, which don't belong in a headless Cloud Run
-   container the way the 8 above do. `send_message` is included
-   specifically to keep a `confirm`-tier tool on the ADK path — see
-   below.
+   `flight_finder`, `file_processor`, `send_message`, `code_helper`, and
+   `dev_agent`. The remaining 5 (`browser_control`, `computer_settings`,
+   `computer_control`, `desktop_control`, `screen_processor`) pull in
+   Playwright/pyautogui/screen-camera capture, which don't belong in a
+   headless Cloud Run container the way the 10 above do, so they stay
+   legacy-path-only. `youtube_video` is also excluded for now — its
+   "play" sub-action opens a URL in a local browser, which is meaningless
+   on a server; it would need to be split into a headless-safe subset
+   (summarize/get_info/trending) before it could be wrapped, and that
+   split hasn't been done yet. `send_message` is included specifically to
+   keep a `confirm`-tier tool on the ADK path — see below. `code_helper`
+   and `dev_agent` are also `confirm`-tier (they run generated code via
+   subprocess), with one exception carved out: `code_helper`'s
+   `screen_debug` sub-action reads the live screen and is blocked at the
+   ADK wrapper level regardless of governance, since there's no screen to
+   read on a server.
 
    **Governance parity.** The legacy executor enforces
    `agent/governance.py`'s allow/confirm/deny policy before every step
@@ -174,14 +194,18 @@ bookmarked. Licensed under MIT (`LICENSE`).
 
 ## Designated demo scenario
 
-**Goal:** *"Search the web for the latest trends in electric vehicles,
-save a short summary to a file called ev_trends.txt on the Desktop, and
-set a reminder for tomorrow at 9:00 AM to review it."*
+**Goal:** *"Search the web for what judges say separates a winning
+hackathon submission from an average one, save the findings as a
+submission-readiness checklist to a file called hackathon_checklist.txt
+on the Desktop, and set a reminder for tonight at 8:00 PM to do a final
+pass against it."*
 
-This is the one scenario used to demo Liya end-to-end. It's chosen
-because it chains three independent tools (`web_search` →
-`file_controller` → `reminder`) in a single autonomous run, which
-exercises:
+This is a real chore, not a stock example: it's the actual BYOF (Bring
+Your Own Friction) problem this team had while finishing this
+submission, run through Liya instead of done by hand. It's the one
+scenario used to demo Liya end-to-end, and it's chosen because it
+chains three independent tools (`web_search` → `file_controller` →
+`reminder`) in a single autonomous run, which exercises:
 
 - **Multi-step planning** — the planner has to sequence three
   dependent actions from one sentence, not just route to a single tool.

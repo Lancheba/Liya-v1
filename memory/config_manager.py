@@ -5,8 +5,8 @@ Reads/writes  config/api_keys.json  which has the shape:
 {
     "gemini_api_key":        "...",
     "os_system":             "windows",
-    "firestore_project_id":  "my-gcp-project",   ← NEW (optional)
-    "firestore_user_id":     "default"            ← NEW (optional)
+    "firestore_project_id": "my-gcp-project", NEW (optional)
+    "firestore_user_id": "default" NEW (optional)
 }
 """
 
@@ -36,7 +36,7 @@ def _read_config() -> dict:
     try:
         return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
     except Exception as exc:
-        print(f"❌ Failed to load api_keys.json: {exc}")
+        print(f" Failed to load api_keys.json: {exc}")
         return {}
 
 
@@ -92,7 +92,7 @@ def save_firestore_config(project_id: str, user_id: str = "default") -> None:
     data["firestore_project_id"] = project_id.strip()
     data["firestore_user_id"]    = user_id.strip() or "default"
     _write_config(data)
-    print(f"[Config] ☁️  Firestore project saved: '{project_id}' (user: '{user_id}')")
+    print(f"[Config] Firestore project saved: '{project_id}' (user: '{user_id}')")
 
 
 def get_firestore_config() -> dict:

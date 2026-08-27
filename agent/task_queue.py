@@ -113,7 +113,7 @@ def _persist_task(task: Task) -> None:
         }
         db.collection("tasks").document(task.task_id).set(doc)
     except Exception as exc:
-        print(f"[TaskQueue] ⚠️  Firestore persist error for [{task.task_id}]: {exc}")
+        print(f"[TaskQueue] Firestore persist error for [{task.task_id}]: {exc}")
 
 
 # ---------------------------------------------------------------------------
@@ -156,13 +156,13 @@ class TaskQueue:
             name="AgentTaskQueue",
         )
         self._worker_thread.start()
-        print("[TaskQueue] ✅ Started")
+        print("[TaskQueue] Started")
 
     def stop(self) -> None:
         self._running = False
         with self._condition:
             self._condition.notify_all()
-        print("[TaskQueue] 🔴 Stopped")
+        print("[TaskQueue] Stopped")
 
     # ------------------------------------------------------------------
     # Public API
@@ -212,7 +212,7 @@ class TaskQueue:
         except Exception:
             pass
 
-        print(f"[TaskQueue] 📥 Task queued: [{task_id}] {goal[:60]}")
+        print(f"[TaskQueue] Task queued: [{task_id}] {goal[:60]}")
         return task_id
 
     def record(
@@ -254,7 +254,7 @@ class TaskQueue:
         except Exception:
             pass
 
-        print(f"[TaskQueue] 📌 Recorded: [{task_id}] {goal[:60]} → {status.value}")
+        print(f"[TaskQueue] Recorded: [{task_id}] {goal[:60]} {status.value}")
         return task_id
 
     def cancel(self, task_id: str) -> bool:
@@ -269,7 +269,7 @@ class TaskQueue:
             task.finished_at = time.time()
 
         threading.Thread(target=_persist_task, args=(task,), daemon=True).start()
-        print(f"[TaskQueue] 🚫 Task cancelled: [{task_id}]")
+        print(f"[TaskQueue] Task cancelled: [{task_id}]")
         return True
 
     def get_status(self, task_id: str) -> dict | None:
@@ -282,8 +282,8 @@ class TaskQueue:
     def get_all_statuses(self, from_firestore: bool = False) -> list[dict]:
         """
         Return task statuses.
-        from_firestore=True  → query Firestore for full history (all past runs).
-        from_firestore=False → return in-memory tasks only (current run).
+        from_firestore=True query Firestore for full history (all past runs).
+        from_firestore=False return in-memory tasks only (current run).
         """
         if from_firestore:
             return self._load_history_from_firestore()
@@ -319,7 +319,7 @@ class TaskQueue:
                 for doc in docs
             ]
         except Exception as exc:
-            print(f"[TaskQueue] ⚠️  Firestore history load error: {exc}")
+            print(f"[TaskQueue] Firestore history load error: {exc}")
             return self.get_all_statuses(from_firestore=False)
 
     # ------------------------------------------------------------------
@@ -358,7 +358,7 @@ class TaskQueue:
         return None
 
     def _run_task(self, task: Task) -> None:
-        print(f"[TaskQueue] ▶️  Running: [{task.task_id}] {task.goal[:60]}")
+        print(f"[TaskQueue] ▶ Running: [{task.task_id}] {task.goal[:60]}")
         task.started_at = time.time()
         # Persist RUNNING state
         threading.Thread(target=_persist_task, args=(task,), daemon=True).start()
@@ -395,9 +395,9 @@ class TaskQueue:
                 try:
                     task.on_complete(task.task_id, result)
                 except Exception as cb_exc:
-                    print(f"[TaskQueue] ⚠️  on_complete callback error: {cb_exc}")
+                    print(f"[TaskQueue] on_complete callback error: {cb_exc}")
 
-            print(f"[TaskQueue] ✅ Completed: [{task.task_id}]")
+            print(f"[TaskQueue] Completed: [{task.task_id}]")
 
         except Exception as exc:
             with self._lock:
@@ -407,7 +407,7 @@ class TaskQueue:
                 self._active_count -= 1
 
             threading.Thread(target=_persist_task, args=(task,), daemon=True).start()
-            print(f"[TaskQueue] ❌ Failed: [{task.task_id}] {exc}")
+            print(f"[TaskQueue] Failed: [{task.task_id}] {exc}")
 
         with self._condition:
             self._condition.notify()

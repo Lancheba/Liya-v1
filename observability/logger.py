@@ -16,7 +16,7 @@ Design:
       queryable locally — GET /task/{id}/trace falls back to this buffer.
 
 Public API:
-    log(event_type, task_id=None, **fields)   ← low-level
+    log(event_type, task_id=None, **fields) low-level
 
     # High-level helpers (used by executor / planner / task_queue):
     log_task_queued(task_id, goal, priority)

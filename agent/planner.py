@@ -30,13 +30,6 @@ web_search
   items: list of strings (optional, for compare mode)
   aspect: string (optional, for compare mode)
 
-game_updater
-  action: "update" | "install" | "list" | "download_status" | "schedule" (required)
-  platform: "steam" | "epic" | "both" (optional, default: both)
-  game_name: string (optional)
-  app_id: string (optional)
-  shutdown_when_done: boolean (optional)
-
 browser_control
   action: "go_to" | "search" | "click" | "type" | "scroll" | "get_text" | "press" | "close" (required)
   url: string (for go_to)
@@ -125,16 +118,6 @@ Steps:
 file_controller | action: list, path: desktop
 file_controller | action: largest, path: desktop, count: 5
 
-Goal: "Install PUBG from Steam"
-Steps:
-
-game_updater | action: install, platform: steam, game_name: "PUBG"
-
-Goal: "Update all my Steam games"
-Steps:
-
-game_updater | action: update, platform: steam
-
 Goal: "Send John a message on WhatsApp saying there is a meeting tomorrow"
 Steps:
 
@@ -187,27 +170,27 @@ def create_plan(goal: str, context: str = "") -> dict:
 
         for step in plan["steps"]:
             if step.get("tool") in ("generated_code",):
-                print(f"[Planner] ⚠️ generated_code detected in step {step.get('step')} — replacing with web_search")
+                print(f"[Planner] generated_code detected in step {step.get('step')} — replacing with web_search")
                 desc = step.get("description", goal)
                 step["tool"] = "web_search"
                 step["parameters"] = {"query": desc[:200]}
 
-        print(f"[Planner] ✅ Plan: {len(plan['steps'])} steps")
+        print(f"[Planner] Plan: {len(plan['steps'])} steps")
         for s in plan["steps"]:
             print(f"  Step {s['step']}: [{s['tool']}] {s['description']}")
 
         return plan
 
     except json.JSONDecodeError as e:
-        print(f"[Planner] ⚠️ JSON parse failed: {e}")
+        print(f"[Planner] JSON parse failed: {e}")
         return _fallback_plan(goal)
     except Exception as e:
-        print(f"[Planner] ⚠️ Planning failed: {e}")
+        print(f"[Planner] Planning failed: {e}")
         return _fallback_plan(goal)
 
 
 def _fallback_plan(goal: str) -> dict:
-    print("[Planner] 🔄 Fallback plan")
+    print("[Planner] Fallback plan")
     return {
         "goal": goal,
         "steps": [
@@ -254,8 +237,8 @@ Create a REVISED plan for the remaining work only. Do not repeat completed steps
                 step["tool"] = "web_search"
                 step["parameters"] = {"query": step.get("description", goal)[:200]}
 
-        print(f"[Planner] 🔄 Revised plan: {len(plan['steps'])} steps")
+        print(f"[Planner] Revised plan: {len(plan['steps'])} steps")
         return plan
     except Exception as e:
-        print(f"[Planner] ⚠️ Replan failed: {e}")
+        print(f"[Planner] Replan failed: {e}")
         return _fallback_plan(goal)

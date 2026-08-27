@@ -41,6 +41,8 @@ from actions.weather_report import weather_action as _weather_action
 from actions.flight_finder import flight_finder as _flight_finder
 from actions.file_processor import file_processor as _file_processor
 from actions.send_message import send_message as _send_message
+from actions.code_helper import code_helper as _code_helper
+from actions.dev_agent import dev_agent as _dev_agent
 from memory.memory_manager import remember as _remember, forget as _forget
 
 # Set on the request path (agent/adk_runner.py) so governance can honor the
@@ -211,6 +213,74 @@ def send_message_tool(receiver: str, message_text: str, platform: str = "whatsap
     return _governed("send_message", params, lambda: _send_message(params))
 
 
+def code_helper_tool(action: str, description: str = "", language: str = "python",
+                      output_path: str = "", file_path: str = "", code: str = "",
+                      timeout: int = 30) -> str:
+    """Write, edit, explain, run, or optimize a piece of code.
+
+    This is a `confirm`-tier tool under agent/governance.py — "run" and
+    "build" execute generated code via subprocess, so in headless/cloud
+    contexts it's blocked unless the request set auto_approve=true, same
+    rule every other confirm-tier tool follows on both execution paths.
+
+    Note: the legacy action also supports a "screen_debug" sub-action
+    that reads the live screen via pyautogui/mss — that one is NOT safe
+    in a headless Cloud Run container and is intentionally excluded here.
+    Use the legacy planner/executor path (main.py, desktop) for
+    screen_debug instead.
+
+    Args:
+        action: One of "write", "edit", "explain", "run", "build",
+            "optimize". ("screen_debug" is not available through this
+            tool — see note above.)
+        description: What to build/write, in plain language.
+        language: Programming language, e.g. "python", "javascript".
+        output_path: Where to save generated code (defaults to Desktop).
+        file_path: Path to an existing file, for edit/explain/run/optimize.
+        code: Inline code to explain/optimize instead of a file.
+        timeout: Max seconds to let a "run" action execute, default 30.
+
+    Returns:
+        A text result: generated/edited code, an explanation, or run output.
+    """
+    if action == "screen_debug":
+        return ("[unsupported on this path] screen_debug requires local "
+                "screen/input access and only runs on the desktop app.")
+    params = {
+        "action": action, "description": description, "language": language,
+        "output_path": output_path, "file_path": file_path, "code": code,
+        "timeout": timeout,
+    }
+    return _governed("code_helper", params, lambda: _code_helper(params))
+
+
+def dev_agent_tool(description: str, language: str = "python",
+                    project_name: str = "", timeout: int = 30) -> str:
+    """Build a small multi-file coding project end-to-end from a plain-
+    language description: plans the files, writes them, runs the result,
+    and self-repairs on failure (up to a fixed retry cap) by reading the
+    traceback and rewriting the offending file.
+
+    This is a `confirm`-tier tool under agent/governance.py, for the same
+    reason code_helper_tool is: it executes generated code via subprocess.
+    Blocked in headless/cloud contexts unless auto_approve=true.
+
+    Args:
+        description: What the project should do, in plain language.
+        language: Programming language for the project, default "python".
+        project_name: Folder name for the project (auto-generated if omitted).
+        timeout: Max seconds to let each run/fix attempt execute.
+
+    Returns:
+        A text summary of what was built and whether it runs successfully.
+    """
+    params = {
+        "description": description, "language": language,
+        "project_name": project_name, "timeout": timeout,
+    }
+    return _governed("dev_agent", params, lambda: _dev_agent(params))
+
+
 def memory_tool(action: str, key: str, value: str = "", category: str = "notes") -> str:
     """Remember or forget a durable fact about the user, persisted across
     sessions (memory/memory_manager.py — Firestore, or local JSON fallback).
@@ -240,20 +310,27 @@ def memory_tool(action: str, key: str, value: str = "", category: str = "notes")
 def get_liya_adk_tools() -> list[FunctionTool]:
     """Returns the set of Liya actions currently exposed to ADK agents.
 
-    9 of the repo's 16 actions are wrapped here today. memory_tool is new:
-    it's the one addition that isn't a re-wrap of an existing actions/*.py
-    module — it gives the ADK path the same durable, cross-session memory
-    the legacy planner path already had via _load_memory_context() in
+    11 of the repo's 16 actions are wrapped here today. memory_tool is the
+    one addition that isn't a re-wrap of an existing actions/*.py module —
+    it gives the ADK path the same durable, cross-session memory the
+    legacy planner path already had via _load_memory_context() in
     agent/executor.py, so the agent can persist a user preference or fact
     mid-conversation instead of only reading memory in at plan time.
 
-    The remaining 7 (browser_control, computer_settings, computer_control,
-    desktop_control, screen_processor, youtube_video, code_helper,
-    dev_agent) follow the identical wrapper pattern above and are the
-    natural next additions — left out of this pass because they carry real
-    desktop/UI dependencies (Playwright, pyautogui) that don't belong in a
-    headless Cloud Run container, unlike the ones below, which all run
-    cleanly server-side.
+    code_helper_tool and dev_agent_tool run generated code via subprocess,
+    not a GUI, so they're headless-safe (with screen_debug specifically
+    excluded — see code_helper_tool's docstring) and gated `confirm`-tier
+    by agent/governance.py exactly like send_message.
+
+    The remaining 5 (browser_control, computer_settings, computer_control,
+    desktop_control, screen_processor) are left out of this pass because
+    they carry real desktop/UI dependencies (Playwright, pyautogui,
+    screen/camera capture) that don't belong in a headless Cloud Run
+    container. youtube_video is also left out: its "play" sub-action opens
+    a URL in a local browser, which is meaningless on a server — it would
+    need to be split into a headless-safe subset (summarize/get_info/
+    trending) before it could be wrapped safely, and that split hasn't
+    been done yet.
     """
     return [
         FunctionTool(web_search_tool),
@@ -264,5 +341,7 @@ def get_liya_adk_tools() -> list[FunctionTool]:
         FunctionTool(flight_finder_tool),
         FunctionTool(file_processor_tool),
         FunctionTool(send_message_tool),
+        FunctionTool(code_helper_tool),
+        FunctionTool(dev_agent_tool),
         FunctionTool(memory_tool),
     ]

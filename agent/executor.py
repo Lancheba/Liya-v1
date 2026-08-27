@@ -161,7 +161,7 @@ def _translate_to_goal_language(content: str, goal: str) -> str:
         )
         response = generate(MODEL_FLASH, prompt)
         translated = response.text.strip()
-        print(f"[Executor] ✅ Translation done ({target_lang})")
+        print(f"[Executor] Translation done ({target_lang})")
         return translated
     except Exception as e:
         print(f"[Executor] Translation failed: {e}")
@@ -280,10 +280,6 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
         from actions.flight_finder import flight_finder
         return flight_finder(parameters=parameters, player=None, speak=speak) or "Done."
 
-    elif tool == "game_updater":
-        from actions.game_updater import game_updater
-        return game_updater(parameters=parameters, player=None, speak=speak) or "Done."
-
     else:
         print(f"[Executor] Unknown tool '{tool}' - falling back to generated_code")
         return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)
@@ -298,8 +294,8 @@ class AgentExecutor:
         speak:       Callable | None        = None,
         cancel_flag: threading.Event | None = None,
         task_id:     str | None             = None,
-        auto_approve: bool                  = False,  # ← NEW: for tool governance
-        resume:      bool                   = False,  # ← resume from a saved checkpoint
+        auto_approve: bool = False, # NEW: for tool governance
+        resume: bool = False, # resume from a saved checkpoint
     ) -> str:
         import time as _time
         import os
@@ -329,7 +325,7 @@ class AgentExecutor:
             step_results     = {int(k): v for k, v in (checkpoint.get("step_results") or {}).items()}
             replan_attempts  = int(checkpoint.get("replan_attempts") or 0)
             done_step_nums   = {s.get("step") for s in completed_steps if s.get("step") is not None}
-            print(f"[Executor] ▶️ Resuming [{task_id}] from checkpoint — "
+            print(f"[Executor] ▶ Resuming [{task_id}] from checkpoint — "
                   f"{len(done_step_nums)} step(s) already done")
             if speak:
                 speak(f"Picking up where I left off, sir — {len(done_step_nums)} step"

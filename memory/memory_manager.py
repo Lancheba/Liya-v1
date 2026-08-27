@@ -2,19 +2,19 @@
 memory_manager.py — Long-term memory for Liya.
 
 Public API (unchanged):
-    load_memory()                  → dict
+    load_memory() dict
     save_memory(memory)
-    update_memory(memory_update)   → dict
-    remember(key, value, category) → str
-    forget(key, category)          → str
-    format_memory_for_prompt(mem)  → str
+    update_memory(memory_update) dict
+    remember(key, value, category) str
+    forget(key, category) str
+    format_memory_for_prompt(mem) str
 
 Backend selection (automatic):
     • Firestore  — when config/api_keys.json has "firestore_project_id" set
     • Local JSON — fallback when Firestore is not configured or unavailable
 
 Firestore schema:
-    users/{user_id}/memory/{category}  →  {key: {value: "...", updated: "YYYY-MM-DD"}, ...}
+    users/{user_id}/memory/{category} {key: {value: "...", updated: "YYYY-MM-DD"}, ...}
 """
 
 from __future__ import annotations
@@ -83,7 +83,7 @@ def _trim_to_limit(memory: dict) -> dict:
         if len(json.dumps(memory, ensure_ascii=False)) <= MEMORY_MAX_CHARS:
             break
         del memory[cat][key]
-        print(f"[Memory] 🗑️  Trimmed {cat}/{key}")
+        print(f"[Memory] Trimmed {cat}/{key}")
     return memory
 
 
@@ -131,7 +131,7 @@ def _firestore_load() -> dict | None:
                 memory[cat] = data
         return memory
     except Exception as exc:
-        print(f"[Memory] ⚠️  Firestore load error: {exc}")
+        print(f"[Memory] Firestore load error: {exc}")
         return None
 
 
@@ -151,10 +151,10 @@ def _firestore_save(memory: dict) -> bool:
             ref = db.collection("users").document(user_id).collection("memory").document(cat)
             batch.set(ref, memory.get(cat, {}))
         batch.commit()
-        print(f"[Memory] ☁️  Firestore save OK (user: {user_id})")
+        print(f"[Memory] Firestore save OK (user: {user_id})")
         return True
     except Exception as exc:
-        print(f"[Memory] ⚠️  Firestore save error: {exc}")
+        print(f"[Memory] Firestore save error: {exc}")
         return False
 
 
@@ -176,7 +176,7 @@ def _local_load() -> dict:
                 return data
             return _empty_memory()
         except Exception as exc:
-            print(f"[Memory] ⚠️ Local load error: {exc}")
+            print(f"[Memory] Local load error: {exc}")
             return _empty_memory()
 
 
@@ -217,7 +217,7 @@ def update_memory(memory_update: dict) -> dict:
     memory = load_memory()
     if _recursive_update(memory, memory_update):
         save_memory(memory)
-        print(f"[Memory] 💾 Updated: {list(memory_update.keys())}")
+        print(f"[Memory] Updated: {list(memory_update.keys())}")
     return memory
 
 
@@ -363,7 +363,7 @@ def append_history_entry(line: str) -> None:
                 encoding="utf-8",
             )
         except Exception as e:
-            print(f"[Memory] ⚠️  Could not save conversation history: {e}")
+            print(f"[Memory] Could not save conversation history: {e}")
 
 
 def load_history(limit: int = HISTORY_MAX_SHOWN) -> list[dict]:

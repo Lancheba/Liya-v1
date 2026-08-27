@@ -2,14 +2,14 @@
 Liya Agent Backend — FastAPI server for Google Cloud Run.
 
 Endpoints:
-    GET  /health          → liveness probe (Cloud Run requires this)
-    GET  /status          → agent info + Firestore connectivity
-    POST /task            → submit a background task to the agent
-    POST /task/adk        → run a goal synchronously via Liya's Google ADK agent
-    GET  /task/{task_id}  → poll a single task's status
-    GET  /tasks           → list recent tasks (from Firestore if enabled)
-    POST /memory/remember → write a memory entry
-    GET  /memory          → read current memory
+    GET /health liveness probe (Cloud Run requires this)
+    GET /status agent info + Firestore connectivity
+    POST /task submit a background task to the agent
+    POST /task/adk run a goal synchronously via Liya's Google ADK agent
+    GET /task/{task_id} poll a single task's status
+    GET /tasks list recent tasks (from Firestore if enabled)
+    POST /memory/remember write a memory entry
+    GET /memory read current memory
 
 All heavy work (planner + executor) runs in the existing TaskQueue so
 the HTTP request returns immediately with the task_id; the client polls
@@ -81,17 +81,32 @@ async def log_requests_middleware(request: Request, call_next):
 _START_TIME = time.time()
 _LIYA_API_KEY = os.environ.get("LIYA_API_KEY", "dev")
 
+# Optional second key, scoped for hackathon judges specifically — set via
+# a separate Secret Manager secret (e.g. `liya-judge-key`) and
+# `--set-secrets=LIYA_JUDGE_KEY=liya-judge-key:latest` in cloudbuild.yaml.
+# Lets a judge test key be handed out and revoked independently of the
+# real LIYA_API_KEY, without needing two deployments. Unset by default —
+# only the primary key works until this is explicitly configured.
+_LIYA_JUDGE_KEY = os.environ.get("LIYA_JUDGE_KEY", "")
+
 
 # ---------------------------------------------------------------------------
 # Auth dependency
 # ---------------------------------------------------------------------------
 
 def verify_key(x_liya_key: Optional[str] = Header(default=None)) -> None:
-    """Require X-Liya-Key header unless key is 'dev' (local mode)."""
+    """Require X-Liya-Key header unless key is 'dev' (local mode).
+
+    Accepts either the primary LIYA_API_KEY or, if configured, the
+    separate judge-scoped LIYA_JUDGE_KEY — see note above.
+    """
     if _LIYA_API_KEY == "dev":
         return  # skip auth in local dev
-    if x_liya_key != _LIYA_API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid or missing X-Liya-Key header.")
+    if x_liya_key == _LIYA_API_KEY:
+        return
+    if _LIYA_JUDGE_KEY and x_liya_key == _LIYA_JUDGE_KEY:
+        return
+    raise HTTPException(status_code=401, detail="Invalid or missing X-Liya-Key header.")
 
 
 # ---------------------------------------------------------------------------
@@ -303,8 +318,8 @@ def get_task_trace(task_id: str):
 def list_tasks(history: bool = False):
     """
     List tasks.
-    ?history=true  → query Firestore for full run history (up to 50).
-    ?history=false → current-session tasks only (default).
+    ?history=true query Firestore for full run history (up to 50).
+    ?history=false current-session tasks only (default).
     """
     from agent.task_queue import get_queue
     return {"tasks": get_queue().get_all_statuses(from_firestore=history)}
