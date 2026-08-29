@@ -156,6 +156,21 @@ def _uptime_str() -> str:
 # Routes
 # ---------------------------------------------------------------------------
 
+@app.get("/", tags=["Observability"])
+def root():
+    """
+    Root route — avoids the default FastAPI/Starlette 404 for anyone who
+    hits the bare service URL (e.g. a judge poking around in a browser).
+    Not used by the demo script itself; /health and /task/adk are.
+    """
+    return {
+        "service": "liya-agent-backend",
+        "status":  "running",
+        "docs":    "/docs",
+        "health":  "/health",
+    }
+
+
 @app.get("/health", tags=["Observability"])
 def health():
     """

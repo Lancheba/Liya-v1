@@ -4,8 +4,8 @@ Liya is deployed on Google Cloud Run. You don't need to clone or run
 anything locally to see it work — the commands below hit the live
 service directly.
 
-**Live service URL:** `[FILL IN — e.g. https://liya-backend-xxxxx-uc.a.run.app]`
-**Judge test key:** `[FILL IN — a key scoped for judge testing, not your real LIYA_API_KEY]`
+**Live service URL:** `https://liya-backend-250703517715.us-central1.run.app`
+**Judge test key:** `judge-liya-2026-test`
 
 > Before pasting your key here: create a **second** value in Secret
 > Manager (or just a second accepted key if `backend/server.py` checks
@@ -18,7 +18,7 @@ service directly.
 ## 1. Health check (no auth needed)
 
 ```bash
-curl https://YOUR-SERVICE-URL/health
+curl https://liya-backend-250703517715.us-central1.run.app/health
 ```
 
 Expected: `{"status": "ok", ...}` — confirms the service is live on
@@ -27,9 +27,9 @@ Cloud Run right now, not just in a screenshot.
 ## 2. Submit the designated demo goal
 
 ```bash
-curl -X POST https://YOUR-SERVICE-URL/task \
+curl -X POST https://liya-backend-250703517715.us-central1.run.app/task \
   -H "Content-Type: application/json" \
-  -H "X-Liya-Key: YOUR-JUDGE-KEY" \
+  -H "X-Liya-Key: judge-liya-2026-test" \
   -d '{
     "goal": "Search the web for what judges say separates a winning hackathon submission from an average one, save the findings as a submission-readiness checklist to a file called hackathon_checklist.txt on the Desktop, and set a reminder for tonight at 8:00 PM to do a final pass against it."
   }'
@@ -42,11 +42,11 @@ back, which is the "async background execution" claim, live.
 ## 3. Poll the task and watch the trace
 
 ```bash
-curl https://YOUR-SERVICE-URL/task/TASK_ID \
-  -H "X-Liya-Key: YOUR-JUDGE-KEY"
+curl https://liya-backend-250703517715.us-central1.run.app/task/TASK_ID \
+  -H "X-Liya-Key: judge-liya-2026-test"
 
-curl https://YOUR-SERVICE-URL/task/TASK_ID/trace \
-  -H "X-Liya-Key: YOUR-JUDGE-KEY"
+curl https://liya-backend-250703517715.us-central1.run.app/task/TASK_ID/trace \
+  -H "X-Liya-Key: judge-liya-2026-test"
 ```
 
 The trace endpoint returns every `plan.created` / `step.start` /
@@ -57,9 +57,9 @@ directly.
 ## 4. Try the Google ADK path
 
 ```bash
-curl -X POST https://YOUR-SERVICE-URL/task/adk \
+curl -X POST https://liya-backend-250703517715.us-central1.run.app/task/adk \
   -H "Content-Type: application/json" \
-  -H "X-Liya-Key: YOUR-JUDGE-KEY" \
+  -H "X-Liya-Key: judge-liya-2026-test" \
   -d '{"goal": "What is the weather in London today?"}'
 ```
 
@@ -68,8 +68,9 @@ Runs the same goal through `agent/adk_runner.py`'s real ADK
 
 ## 5. Interactive API docs
 
-Open `https://YOUR-SERVICE-URL/docs` in a browser (FastAPI's built-in
-Swagger UI) to see and try every endpoint without curl.
+Open `https://liya-backend-250703517715.us-central1.run.app/docs` in a
+browser (FastAPI's built-in Swagger UI) to see and try every endpoint
+without curl.
 
 ---
 

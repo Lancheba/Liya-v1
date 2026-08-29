@@ -7,3 +7,5 @@ venv/
 memory/conversation_history.json
 
 memory/checkpoints.json
+memory/long_term.json
+tempCodeRunnerFile.py
