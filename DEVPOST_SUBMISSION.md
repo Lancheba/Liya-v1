@@ -43,9 +43,10 @@ Two execution paths share the same underlying tool implementations:
 
 1. A direct Gemini-driven planner/executor loop that produces a JSON
    step plan and runs it with retry/replan logic.
-2. A **Google ADK agent** (`agent/adk_agent.py`) wrapping 11 of the
-   same action modules as ADK `FunctionTool`s, run through ADK's own
-   agent loop and session management (`agent/adk_runner.py`).
+2. A **Google ADK agent** (`agent/adk_agent.py`) wrapping 10 of the
+   same action modules as ADK `FunctionTool`s, plus a new `memory_tool`,
+   run through ADK's own agent loop and session management
+   (`agent/adk_runner.py`).
 
 Both paths go through one governance layer and one shared Gemini
 client (`config/ai_client.py`), so a model version bump or a policy

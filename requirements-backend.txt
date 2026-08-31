@@ -1,6 +1,6 @@
 # ─────────────────────────────────────────────────────────────────────────
 # Backend / Cloud Run requirements — what backend/server.py + the ADK path
-# (agent/adk_tools.py's 8 wrapped actions) actually import.
+# (agent/adk_tools.py's 10 wrapped actions, plus memory_tool) actually import.
 #
 # Deliberately excludes desktop-only packages (PyQt6, sounddevice,
 # pyautogui, playwright, mss, ...) that main.py/ui.py need but a headless

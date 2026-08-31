@@ -162,6 +162,28 @@ honest rather than rewritten history):
   touches the agent's own memory store — there's no external system for
   that policy to gate.
 
+## Fixed just before submission: two ADK tools that couldn't actually succeed on Cloud Run
+
+Two of the "headless-safe" ADK tools were wired up and passed governance
+correctly, but couldn't complete their actual job on the deployed
+backend — worth naming rather than quietly patching over:
+
+- **`weather_report`** called `webbrowser.open()` on a Google search URL
+  and returned a generic "showing weather" message without ever fetching
+  data. That's meaningless on a browser-less container. It now calls
+  wttr.in's JSON endpoint directly and returns a real text summary —
+  same code path on desktop and Cloud Run.
+- **`reminder`** relied on an OS-level scheduler (`systemd-run`/`at` on
+  Linux) to fire a future notification. A Cloud Run container has
+  neither, and with `min-instances=0` there's no guarantee the process
+  is even still alive when the reminder is due — so every call failed
+  there, including as the third step of the designated demo scenario
+  below. It now falls back to persisting the reminder as a durable
+  record (Firestore, or local file) when no OS scheduler is available,
+  following the same additive-Firestore pattern as `memory_manager.py`
+  and `checkpoint_store.py`. Actual delivery (a Cloud Scheduler job or a
+  client polling that record) is still open — see "What's next".
+
 ## What's deliberately not in this codebase
 
 A few production-agent concerns are real and worth naming even though

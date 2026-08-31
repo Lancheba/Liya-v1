@@ -64,7 +64,9 @@ curl -X POST https://liya-backend-250703517715.us-central1.run.app/task/adk \
 ```
 
 Runs the same goal through `agent/adk_runner.py`'s real ADK
-`InMemoryRunner` session, not the legacy planner.
+`InMemoryRunner` session, not the legacy planner. (`weather_report`
+calls a live weather API directly — no browser involved — so this
+works the same on Cloud Run as on desktop.)
 
 ## 5. Interactive API docs
 
@@ -88,6 +90,15 @@ Desktop-only tools (`browser_control`, `desktop_control`,
 `screen_processor`, voice via Gemini Live) only run in the local
 desktop app (`python main.py`), not on this Cloud Run deployment — see
 the demo video for those.
+
+`reminder` on Cloud Run: the container has no OS-level scheduler
+(no systemd user session, no `at`), so a reminder can't be set as a
+native OS notification there the way it can on desktop. Instead of
+failing, it persists the reminder as a durable record (Firestore, or a
+local file if Firestore isn't configured) — you'll see a message
+saying it was persisted rather than "Reminder set for ...". Actual
+delivery (a Cloud Scheduler job or a client polling that record) is
+listed under "What's next" in `WRITEUP.md`.
 
 ---
 

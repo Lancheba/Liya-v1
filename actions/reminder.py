@@ -279,6 +279,62 @@ def _schedule_linux(target_dt: datetime, task_name: str,
     print("[Reminder] Neither systemd-run nor at found on this Linux system.")
     return ""
 
+
+def _persist_cloud_reminder(target_dt: datetime, message: str, task_name: str) -> bool:
+    """
+    FIX (2026-08-31): cloud-safe fallback for when no OS-level scheduler
+    is available at all — the normal case on a containerized Cloud Run
+    instance, which has no systemd user session, no `at` daemon, and (with
+    min-instances=0) no guarantee the process is even still alive by the
+    time the reminder is due. Rather than let `reminder()` raise every
+    time it runs on the deployed backend, persist the reminder as a
+    durable record instead: Firestore when configured, a local JSON file
+    otherwise. This is the same "Firestore additive, local-file fallback"
+    pattern already used by memory/memory_manager.py and
+    agent/checkpoint_store.py — actual delivery (a Cloud Scheduler job or
+    a polling client reading this record) is a follow-up, but the
+    reminder is no longer silently un-settable in the cloud deployment.
+    """
+    record = {
+        "task_name":  task_name,
+        "due_at":     target_dt.isoformat(),
+        "message":    message,
+        "delivered":  False,
+        "created_at": datetime.now().isoformat(),
+    }
+
+    try:
+        from config.firestore_client import get_db, is_firestore_enabled, get_user_id
+        if is_firestore_enabled():
+            db = get_db()
+            (
+                db.collection("users")
+                  .document(get_user_id())
+                  .collection("reminders")
+                  .document(task_name)
+                  .set(record)
+            )
+            print(f"[Reminder] No OS scheduler on this host — persisted to Firestore for delivery ({task_name}).")
+            return True
+    except Exception as e:
+        print(f"[Reminder] Firestore persistence failed: {e}")
+
+    try:
+        path = _scripts_dir() / "pending_reminders.json"
+        existing = []
+        if path.exists():
+            try:
+                existing = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                existing = []
+        existing.append(record)
+        path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+        print(f"[Reminder] No OS scheduler on this host — persisted to local file for delivery ({task_name}).")
+        return True
+    except Exception as e:
+        print(f"[Reminder] Local-file persistence also failed: {e}")
+        return False
+
 def reminder(
     parameters: dict,
     response=None,
@@ -332,11 +388,29 @@ def reminder(
         print(f"[Reminder] Scheduling exception: {e}")
         raise RuntimeError(f"Scheduling failed: {e}") from e
 
+    friendly_time = target_dt.strftime("%B %d at %I:%M %p")
+
     if not job_id:
-        raise RuntimeError("Could not register the reminder with the system scheduler.")
+        # No native OS scheduler available (the normal case on a headless
+        # container) — fall back to a durable persisted record instead of
+        # failing the step outright. See _persist_cloud_reminder() above.
+        script_path.unlink(missing_ok=True)
+        if _persist_cloud_reminder(target_dt, safe_msg, task_name):
+            if player:
+                player.write_log(
+                    f"[Reminder] {date_str} {time_str} — {safe_msg[:40]} (persisted, no OS scheduler)"
+                )
+            return (
+                f"No local OS scheduler available here, so the reminder for "
+                f"{friendly_time} was persisted for delivery instead of set as "
+                f"a native notification."
+            )
+        raise RuntimeError(
+            "Could not register the reminder with the system scheduler, "
+            "and the durable fallback (Firestore / local file) also failed."
+        )
 
     if player:
         player.write_log(f"[Reminder] {date_str} {time_str} — {safe_msg[:40]}")
 
-    friendly_time = target_dt.strftime("%B %d at %I:%M %p")
     return f"Reminder set for {friendly_time}."
